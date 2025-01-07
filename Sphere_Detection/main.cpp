@@ -7,6 +7,8 @@
 
 #include <iostream>
 
+#include "App.h"
+
 int main(int argc, char* argv[])
 {
 	// Initialize SDL
@@ -79,6 +81,18 @@ int main(int argc, char* argv[])
 	}
 
 	// Main loop
+	App app;
+	if (!app.Init())
+	{
+		SDL_GL_DeleteContext(context);
+		SDL_DestroyWindow(window);
+		std::cout << "[app.Init] Error during app initialization!" << std::endl;
+		return 1;
+	}
+	int w, h;
+	SDL_GetWindowSize(window, &w, &h);
+	app.Resize(w, h);
+
 	bool quit = false;
 	SDL_Event ev;
 	while (!quit)
@@ -90,8 +104,37 @@ int main(int argc, char* argv[])
 			case SDL_QUIT:
 				quit = true;
 				break;
+			case SDL_KEYDOWN:
+				if (ev.key.keysym.sym == SDLK_ESCAPE)
+					quit = true;
+				app.KeyboardDown(ev.key);
+				break;
+			case SDL_KEYUP:
+				app.KeyboardUp(ev.key);
+				break;
+			case SDL_MOUSEBUTTONDOWN:
+				app.MouseDown(ev.button);
+				break;
+			case SDL_MOUSEBUTTONUP:
+				app.MouseUp(ev.button);
+				break;
+			case SDL_MOUSEWHEEL:
+				app.MouseWheel(ev.wheel);
+				break;
+			case SDL_MOUSEMOTION:
+				app.MouseMove(ev.motion);
+				break;
+			case SDL_WINDOWEVENT:
+				if (ev.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
+				{
+					app.Resize(ev.window.data1, ev.window.data2);
+				}
+				break;
 			}
 		}
+
+		app.Update();
+		app.Render();
 
 		SDL_GL_SwapWindow(window);
 	}

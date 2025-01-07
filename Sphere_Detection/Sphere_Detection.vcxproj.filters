@@ -54,6 +54,9 @@
     <ClCompile Include="Includes\VertexArrayObject.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="App.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SHMManager.h">
@@ -94,6 +97,9 @@
     </ClInclude>
     <ClInclude Include="Includes\VertexArrayObject.h">
       <Filter>GLUtils</Filter>
+    </ClInclude>
+    <ClInclude Include="App.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
