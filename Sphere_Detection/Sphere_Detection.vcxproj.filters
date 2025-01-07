@@ -13,10 +13,107 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{29d06fa0-8ff4-4391-8099-2fb6230c8883}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GLUtils">
+      <UniqueIdentifier>{e3ea0871-c349-43fb-a1aa-de261e349d36}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="SHMManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="PointCloud.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Includes\gCamera.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Includes\GLconversions.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Includes\GLDebugMessageCallback.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Includes\Mesh_OGL3.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Includes\ObjParser_OGL3.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Includes\ProgramObject.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Includes\ShaderObject.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Includes\VertexArrayObject.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="SHMManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PointCloud.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Includes\BufferObject.h">
+      <Filter>GLUtils</Filter>
+    </ClInclude>
+    <ClInclude Include="Includes\gCamera.h">
+      <Filter>GLUtils</Filter>
+    </ClInclude>
+    <ClInclude Include="Includes\GLconversions.hpp">
+      <Filter>GLUtils</Filter>
+    </ClInclude>
+    <ClInclude Include="Includes\GLDebugMessageCallback.h">
+      <Filter>GLUtils</Filter>
+    </ClInclude>
+    <ClInclude Include="Includes\GLUtils.hpp">
+      <Filter>GLUtils</Filter>
+    </ClInclude>
+    <ClInclude Include="Includes\Mesh_OGL3.h">
+      <Filter>GLUtils</Filter>
+    </ClInclude>
+    <ClInclude Include="Includes\ObjParser_OGL3.h">
+      <Filter>GLUtils</Filter>
+    </ClInclude>
+    <ClInclude Include="Includes\ProgramObject.h">
+      <Filter>GLUtils</Filter>
+    </ClInclude>
+    <ClInclude Include="Includes\ShaderObject.h">
+      <Filter>GLUtils</Filter>
+    </ClInclude>
+    <ClInclude Include="Includes\TextureObject.h">
+      <Filter>GLUtils</Filter>
+    </ClInclude>
+    <ClInclude Include="Includes\VertexArrayObject.h">
+      <Filter>GLUtils</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="cloud.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="cloud.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Includes\BufferObject.inl">
+      <Filter>GLUtils</Filter>
+    </None>
+    <None Include="Includes\ProgramObject.inl">
+      <Filter>GLUtils</Filter>
+    </None>
+    <None Include="Includes\TextureObject.inl">
+      <Filter>GLUtils</Filter>
+    </None>
+    <None Include="Includes\VertexArrayObject.inl">
+      <Filter>GLUtils</Filter>
+    </None>
   </ItemGroup>
 </Project>
