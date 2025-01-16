@@ -37,6 +37,7 @@ void PointCloud::Update(const glm::mat4& viewProj)
 	if (mapMem->hasBufferChanged())
 	{
 		std::vector<float> rawData;
+		rawData.resize(POINT_CLOUD_SIZE * CHANNELS);
 		mapMem->readData(rawData.data());
 
 		for (size_t i = 0; i < POINT_CLOUD_SIZE * CHANNELS; i += CHANNELS)

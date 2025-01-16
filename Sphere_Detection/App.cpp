@@ -2,7 +2,7 @@
 
 App::App()
 {
-	camera.SetView(glm::vec3(5, 5, 5), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+	camera.SetView(glm::vec3(0, 15, 50), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 	pointCloud = nullptr;
 }
 
@@ -24,10 +24,12 @@ bool App::Init()
 	char buf2[] = "shm_1";
 	char buf3[] = "shm_2";
 	snd.push_back(std::make_pair(std::wstring(buf2, buf2 + strlen(buf2)), std::wstring(buf3, buf3 + strlen(buf3))));
+	memNames.second = snd;
 
 	pointCloud->Init(memNames);
 
 	camera.SetProj(glm::radians(60.0f), 640.0f / 480.0f, 0.01f, 1000.0f);
+	// pointCloud->readXYZ("C:\\Users\\User\\OneDrive - Eotvos Lorand Tudomanyegyetem\\Iskolai Cuccok\\Szakdolgozat\\lidar\\lidar_data\\1_cartesians\\test_fn1.xyz");
 
 	return true;
 }
