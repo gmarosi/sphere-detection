@@ -19,6 +19,9 @@
     <Filter Include="GLUtils">
       <UniqueIdentifier>{e3ea0871-c349-43fb-a1aa-de261e349d36}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Kernels">
+      <UniqueIdentifier>{68df0a65-dc44-4295-99a3-fad1ed5a2328}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -126,6 +129,9 @@
     </None>
     <None Include="axis.frag">
       <Filter>Shaders</Filter>
+    </None>
+    <None Include="sphere_detect.cl">
+      <Filter>Kernels</Filter>
     </None>
   </ItemGroup>
 </Project>

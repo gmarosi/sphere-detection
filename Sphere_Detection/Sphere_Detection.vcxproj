@@ -170,6 +170,7 @@
     <None Include="Includes\ProgramObject.inl" />
     <None Include="Includes\TextureObject.inl" />
     <None Include="Includes\VertexArrayObject.inl" />
+    <None Include="sphere_detect.cl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

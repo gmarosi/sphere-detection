@@ -40,6 +40,48 @@ bool App::Init()
 	return true;
 }
 
+bool App::InitCl()
+{
+	try
+	{
+		cl::vector<cl::Platform> platforms;
+		cl::Platform::get(&platforms);
+
+		bool create_context_success = false;
+		for (auto platform : platforms)
+		{
+			cl_context_properties props[] =
+			{
+				CL_CONTEXT_PLATFORM,	(cl_context_properties)(platform)(),
+				CL_GL_CONTEXT_KHR,		(cl_context_properties) wglGetCurrentContext(),
+				CL_WGL_HDC_KHR,			(cl_context_properties)wglGetCurrentDC(),
+				0
+			};
+
+			try
+			{
+				context = cl::Context(CL_DEVICE_TYPE_GPU, props);
+				create_context_success = true;
+				break;
+			}
+			catch (cl::Error error) {}
+		}
+
+		if (!create_context_success)
+			throw cl::Error(CL_INVALID_CONTEXT, "Failed to create CL/GL shared context");
+
+		cl::vector<cl::Device> devices = context.getInfo<CL_CONTEXT_DEVICES>();
+		commandQueue = cl::CommandQueue(context, devices[0]);
+
+		return pointCloud->InitCl(context, devices);
+	}
+	catch (cl::Error error)
+	{
+		std::cout << error.what() << std::endl;
+		return false;
+	}
+}
+
 void App::Clean()
 {
 

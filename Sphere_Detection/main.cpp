@@ -82,7 +82,7 @@ int main(int argc, char* argv[])
 
 	// Main loop
 	App app;
-	if (!app.Init())
+	if (!app.Init() || !app.InitCl())
 	{
 		SDL_GL_DeleteContext(context);
 		SDL_DestroyWindow(window);

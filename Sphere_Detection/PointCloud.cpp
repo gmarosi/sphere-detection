@@ -1,11 +1,12 @@
 #include "PointCloud.h"
+#include <fstream>
 
 PointCloud::PointCloud()
 {
 	mapMem = nullptr;
 }
 
-void PointCloud::Init(const MemoryNames& memNames)
+bool PointCloud::Init(const MemoryNames& memNames)
 {
 	mapMem = new SHMManager(memNames.first, memNames.second, sizeof(int), POINT_CLOUD_SIZE * CHANNELS * sizeof(int));
 
@@ -66,6 +67,40 @@ void PointCloud::Init(const MemoryNames& memNames)
 	});
 
 	program.LinkProgram();
+
+	return true;
+}
+
+bool PointCloud::InitCl(cl::Context& context, cl::vector<cl::Device>& devices)
+{
+	try
+	{
+		// Read kernel source code
+		std::ifstream sourceFile("sphere_detect.cl");
+		std::string sourceCode(std::istreambuf_iterator<char>(sourceFile), (std::istreambuf_iterator<char>()));
+		cl::Program::Sources source(1, std::make_pair(sourceCode.c_str(), sourceCode.length() + 1));
+
+		clProgram = cl::Program(context, source);
+
+		try {
+			clProgram.build(devices);
+		}
+		catch (cl::Error error) {
+			std::cout << clProgram.getBuildInfo<CL_PROGRAM_BUILD_LOG>(devices[0]) << std::endl;
+			throw error;
+		}
+
+		sphereKernel = cl::Kernel(clProgram, "sphere_detect");
+
+		posBuffer = cl::BufferGL(context, CL_MEM_READ_WRITE, posVBO);
+	}
+	catch (cl::Error error)
+	{
+		std::cout << error.what() << std::endl;
+		return false;
+	}
+
+	return true;
 }
 
 void PointCloud::Update()

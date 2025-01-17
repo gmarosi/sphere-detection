@@ -1,7 +1,6 @@
 #pragma once
 
 #include "gCamera.h"
-
 #include "PointCloud.h"
 
 class App
@@ -10,6 +9,7 @@ public:
 	App();
 
 	bool Init();
+	bool InitCl();
 	void Clean();
 
 	void Update();
@@ -29,4 +29,8 @@ private:
 	ProgramObject axisProgram;
 
 	gCamera camera;
+
+	// CL
+	cl::Context context;
+	cl::CommandQueue commandQueue;
 };
