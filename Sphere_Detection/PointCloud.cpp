@@ -12,12 +12,48 @@ void PointCloud::Init(const MemoryNames& memNames)
 	pointsPos.resize(POINT_CLOUD_SIZE);
 	pointsIntensity.resize(POINT_CLOUD_SIZE);
 
-	posVBO.BufferData(pointsPos);
-	intensityVBO.BufferData(pointsIntensity);
-	cloudVAO.Init({
-		{ CreateAttribute<0, glm::vec3, 0, sizeof(glm::vec3)>, posVBO },
-		{ CreateAttribute<1, float, 0, sizeof(float)>, intensityVBO }
-	});
+	// Setup VAO & VBOs
+	glGenVertexArrays(1, &cloudVAO);
+	glBindVertexArray(cloudVAO);
+
+	glGenBuffers(1, &posVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, posVBO);
+	glBufferData( GL_ARRAY_BUFFER,
+		POINT_CLOUD_SIZE * sizeof(glm::vec3),
+		nullptr,
+		GL_DYNAMIC_DRAW
+	);
+
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(
+		(GLuint)0,
+		3,
+		GL_FLOAT,
+		GL_FALSE,
+		0,
+		0
+	);
+
+	glGenBuffers(1, &intensityVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, intensityVBO);
+	glBufferData(GL_ARRAY_BUFFER,
+		POINT_CLOUD_SIZE * sizeof(float),
+		nullptr,
+		GL_DYNAMIC_DRAW
+	);
+
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(
+		(GLuint)1,
+		1,
+		GL_FLOAT,
+		GL_FALSE,
+		0,
+		0
+	);
+
+	glBindVertexArray(0);
+	glBindVertexArray(0);
 
 	program.AttachShaders({
 		{GL_VERTEX_SHADER,	 "cloud.vert"},
@@ -47,8 +83,11 @@ void PointCloud::Update()
 			pointsIntensity[i / CHANNELS] = rawData[i + 3];
 		}
 
-		posVBO.BufferData(pointsPos);
-		intensityVBO.BufferData(pointsIntensity);
+		glBindBuffer(GL_ARRAY_BUFFER, posVBO);
+		glBufferData(GL_ARRAY_BUFFER, POINT_CLOUD_SIZE * sizeof(glm::vec3), pointsPos.data(), GL_DYNAMIC_DRAW);
+		glBindBuffer(GL_ARRAY_BUFFER, intensityVBO);
+		glBufferData(GL_ARRAY_BUFFER, POINT_CLOUD_SIZE * sizeof(float), pointsIntensity.data(), GL_DYNAMIC_DRAW);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	}
 }
 
@@ -59,13 +98,14 @@ void PointCloud::Render(const glm::mat4& viewProj)
 	glPointSize(pointRenderSize);
 
 	program.Use();
-	cloudVAO.Bind();
+	glBindVertexArray(cloudVAO);
 
 	glm::mat4 cloudWorld(1.0f);
 	program.SetUniform("mvp", viewProj * cloudWorld);
 
 	glDrawArrays(GL_POINTS, 0, POINT_CLOUD_SIZE);
 
+	glBindVertexArray(0);
 	program.Unuse();
 
 	glDisable(GL_PROGRAM_POINT_SIZE);

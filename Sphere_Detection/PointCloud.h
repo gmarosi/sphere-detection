@@ -41,7 +41,7 @@ private:
 
 	ProgramObject program;
 
-	VertexArrayObject cloudVAO;
-	ArrayBuffer posVBO;
-	ArrayBuffer intensityVBO;
+	GLuint cloudVAO;
+	GLuint posVBO;
+	GLuint intensityVBO;
 };
