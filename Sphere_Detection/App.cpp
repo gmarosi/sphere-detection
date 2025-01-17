@@ -2,7 +2,7 @@
 
 App::App()
 {
-	camera.SetView(glm::vec3(0, 15, 50), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+	camera.SetView(glm::vec3(5, 5, 5), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 	pointCloud = nullptr;
 }
 
@@ -28,8 +28,14 @@ bool App::Init()
 
 	pointCloud->Init(memNames);
 
+	axisProgram.AttachShaders({
+		{GL_VERTEX_SHADER,	 "axis.vert"},
+		{GL_FRAGMENT_SHADER, "axis.frag"}
+		});
+
+	axisProgram.LinkProgram();
+
 	camera.SetProj(glm::radians(60.0f), 640.0f / 480.0f, 0.01f, 1000.0f);
-	// pointCloud->readXYZ("C:\\Users\\User\\OneDrive - Eotvos Lorand Tudomanyegyetem\\Iskolai Cuccok\\Szakdolgozat\\lidar\\lidar_data\\1_cartesians\\test_fn1.xyz");
 
 	return true;
 }
@@ -45,7 +51,7 @@ void App::Update()
 	float delta_time = (SDL_GetTicks() - last_time) / 1000.0f;
 
 	camera.Update(delta_time);
-	pointCloud->Update(camera.GetViewProj());
+	pointCloud->Update();
 
 	last_time = SDL_GetTicks();
 }
@@ -53,7 +59,15 @@ void App::Update()
 void App::Render()
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	pointCloud->Render();
+
+	glm::mat4 viewProj = camera.GetViewProj();
+
+	axisProgram.Use();
+	axisProgram.SetUniform("MVP", viewProj * glm::mat4(1.0f) * glm::translate<float>(glm::vec3(0, 3, 0)));
+	glDrawArrays(GL_LINES, 0, 6);
+	axisProgram.Unuse();
+
+	pointCloud->Render(viewProj);
 }
 
 void App::KeyboardDown(SDL_KeyboardEvent& key)

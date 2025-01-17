@@ -162,6 +162,8 @@
     <ClInclude Include="SHMManager.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="axis.frag" />
+    <None Include="axis.vert" />
     <None Include="cloud.frag" />
     <None Include="cloud.vert" />
     <None Include="Includes\BufferObject.inl" />

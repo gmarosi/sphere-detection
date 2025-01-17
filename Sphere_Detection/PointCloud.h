@@ -25,8 +25,8 @@ public:
 	PointCloud();
 	void Init(const MemoryNames& memNames);
 
-	void Update(const glm::mat4& viewProj);
-	void Render();
+	void Update();
+	void Render(const glm::mat4& viewProj);
 
 private:
 	const int POINT_CLOUD_SIZE = 14976;
@@ -44,6 +44,4 @@ private:
 	VertexArrayObject cloudVAO;
 	ArrayBuffer posVBO;
 	ArrayBuffer intensityVBO;
-
-	glm::mat4 matViewProj;
 };

@@ -28,12 +28,12 @@ void PointCloud::Init(const MemoryNames& memNames)
 		{0, "pointPos"},
 		{1, "pointIntensity"}
 	});
+
+	program.LinkProgram();
 }
 
-void PointCloud::Update(const glm::mat4& viewProj)
+void PointCloud::Update()
 {
-	matViewProj = viewProj;
-
 	if (mapMem->hasBufferChanged())
 	{
 		std::vector<float> rawData;
@@ -42,7 +42,8 @@ void PointCloud::Update(const glm::mat4& viewProj)
 
 		for (size_t i = 0; i < POINT_CLOUD_SIZE * CHANNELS; i += CHANNELS)
 		{
-			pointsPos[i / CHANNELS] = glm::vec3(rawData[i], rawData[i + 2], -rawData[i + 1]);
+			auto tmp = glm::vec4(rawData[i], rawData[i + 2], -rawData[i + 1], 1);
+			pointsPos[i / CHANNELS] = glm::vec3(tmp.x, tmp.y, tmp.z);
 			pointsIntensity[i / CHANNELS] = rawData[i + 3];
 		}
 
@@ -51,17 +52,21 @@ void PointCloud::Update(const glm::mat4& viewProj)
 	}
 }
 
-void PointCloud::Render()
+void PointCloud::Render(const glm::mat4& viewProj)
 {
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_PROGRAM_POINT_SIZE);
 	glPointSize(pointRenderSize);
 
 	program.Use();
-	program.SetUniform("mvp", matViewProj * glm::mat4(1.f));
 	cloudVAO.Bind();
 
+	glm::mat4 cloudWorld(1.0f);
+	program.SetUniform("mvp", viewProj * cloudWorld);
+
 	glDrawArrays(GL_POINTS, 0, POINT_CLOUD_SIZE);
+
+	program.Unuse();
 
 	glDisable(GL_PROGRAM_POINT_SIZE);
 	glDisable(GL_DEPTH_TEST);
