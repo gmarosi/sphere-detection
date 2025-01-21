@@ -43,6 +43,7 @@ public:
 private:
 	const int POINT_CLOUD_SIZE = 14976;
 	const int CHANNELS = 4;
+	const int ITER_NUM = 1000;
 
 	const float pointRenderSize = 5.f;
 
@@ -67,4 +68,6 @@ private:
 	cl::Kernel	sphereFitKernel;
 
 	cl::BufferGL	posBuffer;
+	cl::Buffer		indexBuffer;
+	cl::Buffer		sphereBuffer;
 };

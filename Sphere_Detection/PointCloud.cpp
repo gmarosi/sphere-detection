@@ -94,7 +94,9 @@ bool PointCloud::InitCl(cl::Context& context, const cl::vector<cl::Device>& devi
 		sphereCalcKernel = cl::Kernel(clProgram, "calcSphere");
 		// sphereFitKernel = cl::Kernel(clProgram, "fitSphere");
 
-		posBuffer = cl::BufferGL(*clContext, CL_MEM_READ_WRITE, posVBO);
+		posBuffer    = cl::BufferGL(*clContext, CL_MEM_READ_WRITE, posVBO);
+		indexBuffer  = cl::Buffer(*clContext, CL_MEM_WRITE_ONLY, POINT_CLOUD_SIZE * sizeof(cl_int4));
+		sphereBuffer = cl::Buffer(*clContext, CL_MEM_READ_ONLY, ITER_NUM * sizeof(cl_float4));
 	}
 	catch (cl::Error error)
 	{
@@ -155,7 +157,6 @@ void PointCloud::FitSphere(cl::CommandQueue& queue)
 	if (!fitSphere)
 		return;
 
-
 	/*
 	Idea: calculate eg. 1000 spheres w/ their centers and radii
 		- 4 random indexes 0..POINT_CLOUD_SIZE
@@ -183,12 +184,8 @@ void PointCloud::FitSphere(cl::CommandQueue& queue)
 
 	try
 	{
-		cl::Buffer indexBuffer(*clContext, CL_MEM_WRITE_ONLY, POINT_CLOUD_SIZE * sizeof(cl_int4));
-		cl::Buffer sphereBuffer(*clContext, CL_MEM_READ_ONLY, ITER_NUM * sizeof(cl_float4));
-
 		queue.enqueueWriteBuffer(indexBuffer, CL_TRUE, 0, POINT_CLOUD_SIZE * sizeof(cl_int4), indices.data());
 		queue.finish();
-		std::cout << "asd" << std::endl; // TODO: find out why this fixes crashing
 
 		// acquire GL position buffer
 		cl::vector<cl::Memory> acq;
