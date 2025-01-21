@@ -33,10 +33,12 @@ public:
 	PointCloud();
 
 	bool Init(const MemoryNames& memNames);
-	bool InitCl(cl::Context& context, cl::vector<cl::Device>& devices);
+	bool InitCl(cl::Context& context, const cl::vector<cl::Device>& devices);
 
 	void Update();
 	void Render(const glm::mat4& viewProj);
+
+	void FitSphere(cl::CommandQueue& queue);
 
 private:
 	const int POINT_CLOUD_SIZE = 14976;
@@ -57,8 +59,11 @@ private:
 	GLuint intensityVBO;
 
 	// CL
+	cl::Context* clContext;
+
 	cl::Program clProgram;
-	cl::Kernel	sphereKernel;
+	cl::Kernel	sphereCalcKernel;
+	cl::Kernel	sphereFitKernel;
 
 	cl::BufferGL	posBuffer;
 };
