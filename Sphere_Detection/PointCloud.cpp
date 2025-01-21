@@ -80,7 +80,7 @@ bool PointCloud::InitCl(cl::Context& context, const cl::vector<cl::Device>& devi
 		std::string sourceCode(std::istreambuf_iterator<char>(sourceFile), (std::istreambuf_iterator<char>()));
 		cl::Program::Sources source(1, std::make_pair(sourceCode.c_str(), sourceCode.length() + 1));
 
-		*clContext = context;
+		clContext = &context;
 		clProgram = cl::Program(*clContext, source);
 
 		try {
@@ -92,13 +92,13 @@ bool PointCloud::InitCl(cl::Context& context, const cl::vector<cl::Device>& devi
 		}
 
 		sphereCalcKernel = cl::Kernel(clProgram, "calcSphere");
-		sphereFitKernel = cl::Kernel(clProgram, "fitSphere");
+		// sphereFitKernel = cl::Kernel(clProgram, "fitSphere");
 
 		posBuffer = cl::BufferGL(*clContext, CL_MEM_READ_WRITE, posVBO);
 	}
 	catch (cl::Error error)
 	{
-		std::cout << error.what() << std::endl;
+		std::cout << "PointCloud::InitCl : " << error.what() << std::endl;
 		return false;
 	}
 
@@ -109,6 +109,7 @@ void PointCloud::Update()
 {
 	if (mapMem->hasBufferChanged())
 	{
+		fitSphere = true;
 		std::vector<float> rawData;
 		rawData.resize(POINT_CLOUD_SIZE * CHANNELS);
 		mapMem->readData(rawData.data());
@@ -151,6 +152,10 @@ void PointCloud::Render(const glm::mat4& viewProj)
 
 void PointCloud::FitSphere(cl::CommandQueue& queue)
 {
+	if (!fitSphere)
+		return;
+
+
 	/*
 	Idea: calculate eg. 1000 spheres w/ their centers and radii
 		- 4 random indexes 0..POINT_CLOUD_SIZE
@@ -176,12 +181,14 @@ void PointCloud::FitSphere(cl::CommandQueue& queue)
 		indices.push_back({ a, b, c, d });
 	}
 
-	cl::Buffer indexBuffer(*clContext, CL_MEM_WRITE_ONLY, POINT_CLOUD_SIZE * sizeof(cl_int4));
-	cl::Buffer sphereBuffer(*clContext, CL_MEM_READ_ONLY, ITER_NUM * sizeof(cl_float4));
-
 	try
 	{
+		cl::Buffer indexBuffer(*clContext, CL_MEM_WRITE_ONLY, POINT_CLOUD_SIZE * sizeof(cl_int4));
+		cl::Buffer sphereBuffer(*clContext, CL_MEM_READ_ONLY, ITER_NUM * sizeof(cl_float4));
+
 		queue.enqueueWriteBuffer(indexBuffer, CL_TRUE, 0, POINT_CLOUD_SIZE * sizeof(cl_int4), indices.data());
+		queue.finish();
+		std::cout << "asd" << std::endl; // TODO: find out why this fixes crashing
 
 		// acquire GL position buffer
 		cl::vector<cl::Memory> acq;
@@ -193,13 +200,13 @@ void PointCloud::FitSphere(cl::CommandQueue& queue)
 		sphereCalcKernel.setArg(1, indexBuffer);
 		sphereCalcKernel.setArg(2, sphereBuffer);
 
-		// TODO: run kernel
+		queue.enqueueNDRangeKernel(sphereCalcKernel, cl::NullRange, ITER_NUM, cl::NullRange);
 
 		queue.enqueueReleaseGLObjects(&acq);
 	}
 	catch (cl::Error error)
 	{
-		std::cout << error.what() << std::endl;
+		std::cout << "PointCloud::FitSphere : " << error.what() << std::endl;
 		exit(1);
 	}
 	

@@ -47,6 +47,7 @@ private:
 	const float pointRenderSize = 5.f;
 
 	SHMManager *mapMem;
+	bool		fitSphere = false;
 
 	std::vector<glm::vec3>	pointsPos;
 	std::vector<float>		pointsIntensity;

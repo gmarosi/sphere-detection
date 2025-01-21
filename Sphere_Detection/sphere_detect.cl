@@ -1,7 +1,7 @@
 __kernel void calcSphere(
-	__global read_only float3* data,
-	__global read_only int4* idx,
-	__global write_only float* result)
+	__global float3* data,
+	__global int4* idx,
+	__global float4* result)
 {
 	int g_id = get_global_id(0);
 	int4 indices = idx[g_id];
@@ -26,10 +26,10 @@ __kernel void calcSphere(
 	}
 
 	// filling up the f vector
-	f[0] = points[0].x * points[0].x + points[0].y * points[0].y + points[0].z * points[0].z
-	f[1] = points[1].x * points[1].x + points[1].y * points[1].y + points[1].z * points[1].z
-	f[2] = points[2].x * points[2].x + points[2].y * points[2].y + points[2].z * points[2].z
-	f[3] = points[3].x * points[3].x + points[3].y * points[3].y + points[3].z * points[3].z
+	f[0] = points[0].x * points[0].x + points[0].y * points[0].y + points[0].z * points[0].z;
+	f[1] = points[1].x * points[1].x + points[1].y * points[1].y + points[1].z * points[1].z;
+	f[2] = points[2].x * points[2].x + points[2].y * points[2].y + points[2].z * points[2].z;
+	f[3] = points[3].x * points[3].x + points[3].y * points[3].y + points[3].z * points[3].z;
 
 	// Gauss-elimination downwards
 	for(int i = 0; i < 3; i++)
@@ -41,7 +41,7 @@ __kernel void calcSphere(
 
 		for(int j = i + 1; j < 4; j++)
 		{
-			float div = A[j * 4 + i] / A[i * 4 + i]
+			float div = A[j * 4 + i] / A[i * 4 + i];
 
 			for(int k = i; k < 4; k++)
 			{
@@ -53,5 +53,25 @@ __kernel void calcSphere(
 	}
 
 	// elimination upwards
-	// TODO
+	for(int i = 3; i > 0; i--)
+	{
+		if(A[i * 4 + i] == 0)
+		{
+			continue;
+		}
+
+		for(int j = i - 1; j >= 0; j--)
+		{
+			float div = A[j * 4 + i] / A[i * 4 + i];
+			A[j * 4 + i] = 0;
+			f[j] = f[j] - f[i] * div;
+		}
+	}
+
+	float x = f[0] / A[0 * 4 + 0];
+    float y = f[1] / A[1 * 4 + 1];
+    float z = f[2] / A[2 * 4 + 2];
+    float r = sqrt(f[3] + x * x + y * y + z * z);
+
+	result[g_id] = (float4)(x, y, z, r);
 }

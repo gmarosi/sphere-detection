@@ -94,6 +94,7 @@ void App::Update()
 
 	camera.Update(delta_time);
 	pointCloud->Update();
+	pointCloud->FitSphere(commandQueue);
 
 	last_time = SDL_GetTicks();
 }
