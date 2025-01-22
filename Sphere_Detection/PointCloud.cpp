@@ -184,7 +184,7 @@ void PointCloud::FitSphere(cl::CommandQueue& queue)
 
 	try
 	{
-		queue.enqueueWriteBuffer(indexBuffer, CL_TRUE, 0, POINT_CLOUD_SIZE * sizeof(cl_int4), indices.data());
+		queue.enqueueWriteBuffer(indexBuffer, CL_TRUE, 0, ITER_NUM * sizeof(cl_int4), indices.data());
 		queue.finish();
 
 		// acquire GL position buffer
