@@ -20,7 +20,7 @@ bool PointCloud::Init(const MemoryNames& memNames)
 	glGenBuffers(1, &posVBO);
 	glBindBuffer(GL_ARRAY_BUFFER, posVBO);
 	glBufferData( GL_ARRAY_BUFFER,
-		POINT_CLOUD_SIZE * sizeof(glm::vec3),
+		POINT_CLOUD_SIZE * sizeof(glm::vec4),
 		nullptr,
 		GL_DYNAMIC_DRAW
 	);
@@ -28,7 +28,7 @@ bool PointCloud::Init(const MemoryNames& memNames)
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(
 		(GLuint)0,
-		3,
+		4,
 		GL_FLOAT,
 		GL_FALSE,
 		0,
@@ -92,11 +92,14 @@ bool PointCloud::InitCl(cl::Context& context, const cl::vector<cl::Device>& devi
 		}
 
 		sphereCalcKernel = cl::Kernel(clProgram, "calcSphere");
-		// sphereFitKernel = cl::Kernel(clProgram, "fitSphere");
+		sphereFitKernel  = cl::Kernel(clProgram, "fitSphere");
+		reduceKernel	 = cl::Kernel(clProgram, "reduce");
+		sphereFillKernel = cl::Kernel(clProgram, "sphereFill");
 
 		posBuffer    = cl::BufferGL(*clContext, CL_MEM_READ_WRITE, posVBO);
-		indexBuffer  = cl::Buffer(*clContext, CL_MEM_WRITE_ONLY, POINT_CLOUD_SIZE * sizeof(cl_int4));
+		indexBuffer  = cl::Buffer(*clContext, CL_MEM_WRITE_ONLY, ITER_NUM * sizeof(cl_int4));
 		sphereBuffer = cl::Buffer(*clContext, CL_MEM_READ_ONLY, ITER_NUM * sizeof(cl_float4));
+		inlierBuffer = cl::Buffer(*clContext, CL_MEM_READ_WRITE, ITER_NUM * sizeof(float));
 	}
 	catch (cl::Error error)
 	{
@@ -118,13 +121,13 @@ void PointCloud::Update()
 
 		for (size_t i = 0; i < POINT_CLOUD_SIZE * CHANNELS; i += CHANNELS)
 		{
-			auto tmp = glm::vec4(rawData[i], rawData[i + 2], -rawData[i + 1], 1);
-			pointsPos[i / CHANNELS] = glm::vec3(tmp.x, tmp.y, tmp.z);
+			// last coordinate will be used by OpenCL kernel
+			pointsPos[i / CHANNELS] = glm::vec4(rawData[i], rawData[i + 2], -rawData[i + 1], 0);
 			pointsIntensity[i / CHANNELS] = rawData[i + 3];
 		}
 
 		glBindBuffer(GL_ARRAY_BUFFER, posVBO);
-		glBufferData(GL_ARRAY_BUFFER, POINT_CLOUD_SIZE * sizeof(glm::vec3), pointsPos.data(), GL_DYNAMIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, POINT_CLOUD_SIZE * sizeof(glm::vec4), pointsPos.data(), GL_DYNAMIC_DRAW);
 		glBindBuffer(GL_ARRAY_BUFFER, intensityVBO);
 		glBufferData(GL_ARRAY_BUFFER, POINT_CLOUD_SIZE * sizeof(float), pointsIntensity.data(), GL_DYNAMIC_DRAW);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -156,6 +159,7 @@ void PointCloud::FitSphere(cl::CommandQueue& queue)
 {
 	if (!fitSphere)
 		return;
+	fitSphere = false;
 
 	/*
 	Idea: calculate eg. 1000 spheres w/ their centers and radii
@@ -199,6 +203,32 @@ void PointCloud::FitSphere(cl::CommandQueue& queue)
 
 		queue.enqueueNDRangeKernel(sphereCalcKernel, cl::NullRange, ITER_NUM, cl::NullRange);
 
+		glm::vec4 sphere;
+		queue.enqueueReadBuffer(sphereBuffer, CL_TRUE, 0, sizeof(cl_float4), &sphere);
+		std::cout << sphere.x << "; " << sphere.y << "; " << sphere.z << "; r: " << sphere.w << std::endl;
+
+		sphereFitKernel.setArg(0, posBuffer);
+		sphereFitKernel.setArg(1, sphereBuffer);
+		sphereFitKernel.setArg(2, inlierBuffer);
+
+		queue.enqueueNDRangeKernel(sphereFitKernel, cl::NullRange, ITER_NUM, cl::NullRange);
+		
+		reduceKernel.setArg(0, inlierBuffer);
+		reduceKernel.setArg(1, sphereBuffer);
+
+		for (int offset = 1; offset < ITER_NUM; offset <<= 1)
+		{
+			reduceKernel.setArg(2, offset);
+
+			int global_size = ITER_NUM / (offset * 2);
+			queue.enqueueNDRangeKernel(reduceKernel, cl::NullRange, global_size, cl::NullRange);
+		}
+		
+		sphereFillKernel.setArg(0, posBuffer);
+		sphereFillKernel.setArg(1, sphereBuffer);
+
+		queue.enqueueNDRangeKernel(sphereFillKernel, cl::NullRange, POINT_CLOUD_SIZE, cl::NullRange);
+
 		queue.enqueueReleaseGLObjects(&acq);
 	}
 	catch (cl::Error error)
@@ -206,5 +236,5 @@ void PointCloud::FitSphere(cl::CommandQueue& queue)
 		std::cout << "PointCloud::FitSphere : " << error.what() << std::endl;
 		exit(1);
 	}
-	
+
 }

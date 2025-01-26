@@ -1,5 +1,8 @@
+const int CLOUD_SIZE = 14976;
+const float EPSILON = 0.01;
+
 __kernel void calcSphere(
-	__global float3* data,
+	__global float4* data,
 	__global int4* idx,
 	__global float4* result)
 {
@@ -8,21 +11,20 @@ __kernel void calcSphere(
 
 	// the 4 random points
 	// points[0-3].xyzw is a 4x4 matrix
-	__private float3 points[4] = {indices.x, indices.y, indices.z, indices.w};
+	__private float4 points[4] = {data[indices.x], data[indices.y], data[indices.z], data[indices.w]};
 
+	
 	// temp matrix and vector
 	__private float A[4 * 4];
 	__private float f[4]; 
 
 	// filling up the A matrix
-	int cnt = 0;
 	for(int i = 0; i < 4; i++)
 	{
-		A[cnt * i]	   = 2 * points[i].x;
-		A[cnt * i + 1] = 2 * points[i].y;
-		A[cnt * i + 2] = 2 * points[i].z;
-		A[cnt * i + 3] = 1;
-		cnt += 4;
+		A[4 * i]	 = 2 * points[i].x;
+		A[4 * i + 1] = 2 * points[i].y;
+		A[4 * i + 2] = 2 * points[i].z;
+		A[4 * i + 3] = 1;
 	}
 
 	// filling up the f vector
@@ -74,4 +76,51 @@ __kernel void calcSphere(
     float r = sqrt(f[3] + x * x + y * y + z * z);
 
 	result[g_id] = (float4)(x, y, z, r);
+}
+
+__kernel void fitSphere(
+	__global float4* data,
+	__global float4* spheres,
+	__global float*  result)
+{
+	int g_id = get_global_id(0);
+	float4 sphere = spheres[g_id];
+
+	float sum = 0;
+	// naive implementation
+	for(int i = 0; i < CLOUD_SIZE; i++)
+	{
+		float dist = distance(data[i].xyz, sphere.xyz);
+		sum += fabs(sphere.w - dist) < EPSILON ? 1 : 0;
+	}
+	result[g_id] = sum / CLOUD_SIZE;
+}
+
+__kernel void reduce(
+	__global float*  inliers,
+	__global float4* spheres,
+	int offset)
+{
+	int g_id = get_global_id(0);
+	int id_2 = g_id + offset;
+
+	// idea is to also swap sphere coordinates along with inlier ratios
+	if(inliers[g_id] < inliers[id_2])
+	{
+		inliers[g_id] = inliers[id_2];
+		spheres[g_id] = spheres[id_2];
+	}
+}
+
+__kernel void sphereFill(
+	__global float4* data,
+	__global float4* spheres)
+{
+	int g_id = get_global_id(0);
+	float dist = distance(data[g_id].xyz, spheres[0].xyz);
+
+	if(fabs(spheres[0].w - dist) < EPSILON)
+	{
+		data[g_id].w = 1;
+	}
 }

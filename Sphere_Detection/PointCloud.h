@@ -50,7 +50,7 @@ private:
 	SHMManager *mapMem;
 	bool		fitSphere = false;
 
-	std::vector<glm::vec3>	pointsPos;
+	std::vector<glm::vec4>	pointsPos;
 	std::vector<float>		pointsIntensity;
 
 	// GL
@@ -62,12 +62,15 @@ private:
 
 	// CL
 	cl::Context* clContext;
+	cl::Program  clProgram;
 
-	cl::Program clProgram;
 	cl::Kernel	sphereCalcKernel;
 	cl::Kernel	sphereFitKernel;
+	cl::Kernel	reduceKernel;
+	cl::Kernel  sphereFillKernel;
 
 	cl::BufferGL	posBuffer;
 	cl::Buffer		indexBuffer;
 	cl::Buffer		sphereBuffer;
+	cl::Buffer		inlierBuffer;
 };
