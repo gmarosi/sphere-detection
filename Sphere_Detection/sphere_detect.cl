@@ -1,5 +1,5 @@
 const int CLOUD_SIZE = 14976;
-const float EPSILON = 0.01;
+const float EPSILON = 0.22;
 
 __kernel void calcSphere(
 	__global float4* data,
@@ -75,7 +75,12 @@ __kernel void calcSphere(
     float z = f[2] / A[2 * 4 + 2];
     float r = sqrt(f[3] + x * x + y * y + z * z);
 
-	result[g_id] = (float4)(x, y, z, r);
+	result[g_id] = (float4)(
+		isinf(x) || isnan(x) ? 0 : x,
+		isinf(y) || isnan(y) ? 0 : y,
+		isinf(z) || isnan(z) ? 0 : z,
+		isinf(r) || isnan(r) ? 0 : r
+	);
 }
 
 __kernel void fitSphere(
@@ -101,7 +106,7 @@ __kernel void reduce(
 	__global float4* spheres,
 	int offset)
 {
-	int g_id = get_global_id(0);
+	int g_id = get_global_id(0) * offset * 2;
 	int id_2 = g_id + offset;
 
 	// idea is to also swap sphere coordinates along with inlier ratios

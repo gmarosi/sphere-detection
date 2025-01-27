@@ -166,24 +166,13 @@ void PointCloud::FitSphere(cl::CommandQueue& queue)
 		- 4 random indexes 0..POINT_CLOUD_SIZE
 		- calc spheres in kernel
 	*/
-	const int ITER_NUM = 1000;
 
 	std::vector<cl_int4> indices;
 	for (int i = 0; i < ITER_NUM; i++)
 	{
-		// get 4 distinct numbers
-		int a, b, c, d;
-		a = rand() % POINT_CLOUD_SIZE;
-		do {
-			b = rand() % POINT_CLOUD_SIZE;
-		} while (b == a);
-		do {
-			c = rand() % POINT_CLOUD_SIZE;
-		} while (c == a || c == b);
-		do {
-			d = rand() % POINT_CLOUD_SIZE;
-		} while (d == a || d == b || d == c);
-		indices.push_back({ a, b, c, d });
+		// points close in data are close in space => more likely part of same object
+		int a = rand() % (POINT_CLOUD_SIZE - 3);
+		indices.push_back({ a, a + 1, a + 2, a + 3 });
 	}
 
 	try
@@ -196,7 +185,7 @@ void PointCloud::FitSphere(cl::CommandQueue& queue)
 		acq.push_back(posBuffer);
 		queue.enqueueAcquireGLObjects(&acq);
 
-		// set kernel args
+		// calculate spheres
 		sphereCalcKernel.setArg(0, posBuffer);
 		sphereCalcKernel.setArg(1, indexBuffer);
 		sphereCalcKernel.setArg(2, sphereBuffer);
@@ -207,12 +196,14 @@ void PointCloud::FitSphere(cl::CommandQueue& queue)
 		queue.enqueueReadBuffer(sphereBuffer, CL_TRUE, 0, sizeof(cl_float4), &sphere);
 		std::cout << sphere.x << "; " << sphere.y << "; " << sphere.z << "; r: " << sphere.w << std::endl;
 
+		// evaluate sphere inlier ratio
 		sphereFitKernel.setArg(0, posBuffer);
 		sphereFitKernel.setArg(1, sphereBuffer);
 		sphereFitKernel.setArg(2, inlierBuffer);
 
 		queue.enqueueNDRangeKernel(sphereFitKernel, cl::NullRange, ITER_NUM, cl::NullRange);
 		
+		// reduction to get sphere with highest inlier ratio
 		reduceKernel.setArg(0, inlierBuffer);
 		reduceKernel.setArg(1, sphereBuffer);
 
@@ -224,6 +215,7 @@ void PointCloud::FitSphere(cl::CommandQueue& queue)
 			queue.enqueueNDRangeKernel(reduceKernel, cl::NullRange, global_size, cl::NullRange);
 		}
 		
+		// color points which are on the best sphere
 		sphereFillKernel.setArg(0, posBuffer);
 		sphereFillKernel.setArg(1, sphereBuffer);
 
