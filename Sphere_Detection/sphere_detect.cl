@@ -43,8 +43,8 @@ __kernel void calcSphere(
     {
         float4 x = (float4)(A[0], A[4], A[8], A[12]);
 	    float alpha = length(x);
-	    alpha = x.x * alpha > 0 ? (-1.0f) * alpha : alpha;
-        float4 v_ = normalize(x - (float4)(alpha, 0, 0, 0));
+	    alpha = copysign(alpha, x.x);
+        float4 v_ = normalize(x + (float4)(alpha, 0, 0, 0));
         float v[4] = {v_.x, v_.y, v_.z, v_.w};
 
 	    for(int i = 0; i < 4; i++)
@@ -75,7 +75,7 @@ __kernel void calcSphere(
     {
         float3 x = (float3)(A1[4 + 1], A1[8 + 1], A1[12 + 1]);
         float alpha = length(x);
-	    alpha = x.x * alpha > 0 ? (-1.0f) * alpha : alpha;
+	    alpha = copysign(alpha, x.x);
         float3 v_ = normalize(x - (float3)(alpha, 0, 0));
         float v[3] = {v_.x, v_.y, v_.z};
 
@@ -108,7 +108,7 @@ __kernel void calcSphere(
     {
         float2 x = (float2)(A2[8 + 2], A2[12 + 2]);
         float alpha = length(x);
-	    alpha = x.x * alpha > 0 ? (-1.0f) * alpha : alpha;
+	    alpha = copysign(alpha, x.x);
         float2 v_ = normalize(x - (float2)(alpha, 0));
         float v[2] = {v_.x, v_.y};
 
