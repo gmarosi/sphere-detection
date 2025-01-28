@@ -33,54 +33,139 @@ __kernel void calcSphere(
 	f[2] = points[2].x * points[2].x + points[2].y * points[2].y + points[2].z * points[2].z;
 	f[3] = points[3].x * points[3].x + points[3].y * points[3].y + points[3].z * points[3].z;
 
-	// Gauss-elimination downwards
-	for(int i = 0; i < 3; i++)
+
+	// QR decomposition using Householder reflections
+	float QT[4*4] = {0};
+
+    // 1st iteration
+    float A1[4*4] = {0}, Q1[4*4];
+
+    {
+        float4 x = (float4)(A[0], A[4], A[8], A[12]);
+	    float alpha = length(x);
+	    alpha = x.x * alpha > 0 ? (-1.0f) * alpha : alpha;
+        float4 v_ = normalize(x - (float4)(alpha, 0, 0, 0));
+        float v[4] = {v_.x, v_.y, v_.z, v_.w};
+
+	    for(int i = 0; i < 4; i++)
+	    {
+	    	for(int j = 0; j < 4; j++)
+	    	{
+	    		float vvt = 2 * v[i] * v[j];
+	    		Q1[i * 4 + j] = i == j ? 1 - vvt : -vvt;
+	    	}
+	    }
+
+	    for(int i = 0; i < 4; i++)
+	    {
+	    	for(int k = 0; k < 4; k++)
+	    	{
+	    		for(int j = 0; j < 4; j++)
+	    		{
+	    			A1[i * 4 + j] += Q1[i * 4 + k] * A[k * 4 + j];
+	    		}
+	    	}
+	    }
+    }
+
+
+    // 2nd iteration
+    float A2[4*4] = {0}, Q2[4*4] = {0}, Qtemp[4*4] = {0};
+
+    {
+        float3 x = (float3)(A1[4 + 1], A1[8 + 1], A1[12 + 1]);
+        float alpha = length(x);
+	    alpha = x.x * alpha > 0 ? (-1.0f) * alpha : alpha;
+        float3 v_ = normalize(x - (float3)(alpha, 0, 0));
+        float v[3] = {v_.x, v_.y, v_.z};
+
+        for(int i = 1; i < 4; i++)
+	    {
+	    	for(int j = 1; j < 4; j++)
+	    	{
+	    		float vvt = 2 * v[i - 1] * v[j - 1];
+	    		Q2[i * 4 + j] = i == j ? 1 - vvt : -vvt;
+	    	}
+	    }
+        Q2[0] = 1;
+
+	    for(int i = 0; i < 4; i++)
+	    {
+	    	for(int k = 0; k < 4; k++)
+	    	{
+	    		for(int j = 0; j < 4; j++)
+	    		{
+	    			A2[i * 4 + j] += Q2[i * 4 + k] * A1[k * 4 + j];
+                    Qtemp[i * 4 + j] += Q2[i * 4 + k] * Q1[k * 4 + j];
+	    		}
+	    	}
+	    }
+    }
+
+    // 3rd iteration
+    float R[4*4] = {0}, Q3[4*4] = {0};
+
+    {
+        float2 x = (float2)(A2[8 + 2], A2[12 + 2]);
+        float alpha = length(x);
+	    alpha = x.x * alpha > 0 ? (-1.0f) * alpha : alpha;
+        float2 v_ = normalize(x - (float2)(alpha, 0));
+        float v[2] = {v_.x, v_.y};
+
+        for(int i = 2; i < 4; i++)
+	    {
+	    	for(int j = 2; j < 4; j++)
+	    	{
+	    		float vvt = 2 * v[i - 2] * v[j - 2];
+	    		Q2[i * 4 + j] = i == j ? 1 - vvt : -vvt;
+	    	}
+	    }
+        Q3[0] = 1;
+        Q3[5] = 1;
+
+	    for(int i = 0; i < 4; i++)
+	    {
+	    	for(int k = 0; k < 4; k++)
+	    	{
+	    		for(int j = 0; j < 4; j++)
+	    		{
+	    			R[i * 4 + j]  += Q3[i * 4 + k] * A2[k * 4 + j];
+                    QT[i * 4 + j] += Q3[i * 4 + k] * Qtemp[k * 4 + j];
+	    		}
+	    	}
+	    }
+    }
+
+	// Ax = f -> Rx = QTf
+	// calculating QTf
+	float final[4] = {0};
+
+	for(int i = 0; i < 4; i++)
 	{
-		if(A[i * 4 + i] == 0)
+		for(int j = 0; j < 4; j++)
 		{
-			continue;
-		}
-
-		for(int j = i + 1; j < 4; j++)
-		{
-			float div = A[j * 4 + i] / A[i * 4 + i];
-
-			for(int k = i; k < 4; k++)
-			{
-				A[j * 4 + k] = A[j * 4 + k] - A[i * 4 + k] * div;
-			}
-
-			f[j] = f[j] - f[i] * div;
+			final[i] += QT[i * 4 + j] * f[j];
 		}
 	}
 
-	// elimination upwards
-	for(int i = 3; i > 0; i--)
-	{
-		if(A[i * 4 + i] == 0)
-		{
-			continue;
-		}
+	// solving Rx = QTf by substitution
+	final[3] = R[15] == 0 ? final[3] : final[3] / R[15];
 
-		for(int j = i - 1; j >= 0; j--)
-		{
-			float div = A[j * 4 + i] / A[i * 4 + i];
-			A[j * 4 + i] = 0;
-			f[j] = f[j] - f[i] * div;
-		}
-	}
+	final[2] = final[2] - R[11] * final[3];
+	final[2] = R[10] == 0 ? final[2] : final[2] / R[10];
 
-	float x = f[0] / A[0 * 4 + 0];
-    float y = f[1] / A[1 * 4 + 1];
-    float z = f[2] / A[2 * 4 + 2];
-    float r = sqrt(f[3] + x * x + y * y + z * z);
+	final[1] = final[1] - R[6] * final[2] - R[7] * final[3];
+	final[1] = R[5] == 0 ? final[1] : final[1] / R[5];
 
-	result[g_id] = (float4)(
-		isinf(x) || isnan(x) ? 0 : x,
-		isinf(y) || isnan(y) ? 0 : y,
-		isinf(z) || isnan(z) ? 0 : z,
-		isinf(r) || isnan(r) ? 0 : r
-	);
+	final[0] = final[0] - R[1] * final[1] - R[2] * final[2] - R[3] * final[3];
+	final[0] = R[0] == 0 ? final[0] : final[0] / R[0];
+
+	float x = final[0];
+    float y = final[1];
+    float z = final[2];
+    float r = sqrt(final[3] + x * x + y * y + z * z);
+
+	result[g_id] = (float4)(x, y, z, r);
 }
 
 __kernel void fitSphere(
