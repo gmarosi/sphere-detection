@@ -149,7 +149,7 @@ __kernel void calcSphere(
 	}
 
 	// solving Rx = QTf by substitution
-	final[3] = R[15] == 0 ? final[3] : final[3] / R[15];
+	final[3] = R[15] == 0 ? 0 : final[3] / R[15];
 
 	final[2] = final[2] - R[11] * final[3];
 	final[2] = R[10] == 0 ? final[2] : final[2] / R[10];
