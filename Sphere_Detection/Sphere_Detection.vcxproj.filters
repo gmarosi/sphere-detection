@@ -106,9 +106,6 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="cloud.vert">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="cloud.frag">
       <Filter>Shaders</Filter>
     </None>
@@ -132,6 +129,9 @@
     </None>
     <None Include="sphere_detect.cl">
       <Filter>Kernels</Filter>
+    </None>
+    <None Include="cloud.vert">
+      <Filter>Shaders</Filter>
     </None>
   </ItemGroup>
 </Project>

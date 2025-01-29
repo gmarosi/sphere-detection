@@ -1,5 +1,5 @@
 const int CLOUD_SIZE = 14976;
-const float EPSILON = 0.22;
+const float EPSILON = 0.1;
 
 __kernel void calcSphere(
 	__global float4* data,
