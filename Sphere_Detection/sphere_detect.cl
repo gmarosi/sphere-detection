@@ -1,5 +1,5 @@
 const int CLOUD_SIZE = 14976;
-const float EPSILON = 0.22;
+const float EPSILON = 0.05;
 
 __kernel void calcSphere(
 	__global float4* data,
@@ -161,8 +161,8 @@ __kernel void calcSphere(
 	final[0] = R[0] == 0 ? final[0] : final[0] / R[0];
 
 	float x = final[0];
-    float y = final[1];
-    float z = final[2];
+    float y = final[2];
+    float z = final[1];
     float r = sqrt(final[3] + x * x + y * y + z * z);
 
 	result[g_id] = (float4)(x, y, z, r);

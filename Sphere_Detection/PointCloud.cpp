@@ -122,8 +122,15 @@ void PointCloud::Update()
 		for (size_t i = 0; i < POINT_CLOUD_SIZE * CHANNELS; i += CHANNELS)
 		{
 			// last coordinate will be used by OpenCL kernel
-			pointsPos[i / CHANNELS] = glm::vec4(rawData[i], rawData[i + 2], -rawData[i + 1], 0);
+			glm::vec4 point = glm::vec4(rawData[i], rawData[i + 2], -rawData[i + 1], 0);
+			pointsPos[i / CHANNELS] = point;
 			pointsIntensity[i / CHANNELS] = rawData[i + 3];
+
+			// storing indices of candidate points
+			if (glm::distance(glm::vec2(0, 0), glm::vec2(point.x, point.z)) < 6 && point.z < 0)
+			{
+				candidates.push_back(i / CHANNELS);
+			}
 		}
 
 		glBindBuffer(GL_ARRAY_BUFFER, posVBO);
@@ -170,9 +177,25 @@ void PointCloud::FitSphere(cl::CommandQueue& queue)
 	std::vector<cl_int4> indices;
 	for (int i = 0; i < ITER_NUM; i++)
 	{
+		// choosing 4 random indices from candidate vector
+		int a, b, c, d;
+		a = rand() % candidates.size();
+		do {
+			b = rand() % candidates.size();
+		} while (b == a);
+		do {
+			c = rand() % candidates.size();
+		} while (c == a || c == b);
+		do {
+			d = rand() % candidates.size();
+		} while (d == a || d == b || d == c);
+		indices.push_back({ candidates[a], candidates[b], candidates[c], candidates[d] });
+		
+		/*
 		// points close in data are close in space => more likely part of same object
-		int a = rand() % (POINT_CLOUD_SIZE - 3);
-		indices.push_back({ a, a + 1, a + 2, a + 3 });
+		int a = rand() % (candidates.size() - 3);
+		indices.push_back({ candidates[a], candidates[a + 1], candidates[a + 2], candidates[a + 3] });
+		*/
 	}
 
 	try
