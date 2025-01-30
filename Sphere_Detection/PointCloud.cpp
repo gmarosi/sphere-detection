@@ -102,7 +102,7 @@ bool PointCloud::InitCl(cl::Context& context, const cl::vector<cl::Device>& devi
 		sphereFillKernel = cl::Kernel(clProgram, "sphereFill");
 
 		posBuffer    = cl::BufferGL(*clContext, CL_MEM_READ_WRITE, posVBO);
-		indexBuffer  = cl::Buffer(*clContext, CL_MEM_WRITE_ONLY, ITER_NUM * sizeof(cl_int4));
+		indexBuffer  = cl::Buffer(*clContext, CL_MEM_WRITE_ONLY, FIT_COUNT * ITER_NUM * sizeof(int));
 		sphereBuffer = cl::Buffer(*clContext, CL_MEM_READ_ONLY, ITER_NUM * sizeof(cl_float4));
 		inlierBuffer = cl::Buffer(*clContext, CL_MEM_READ_WRITE, ITER_NUM * sizeof(int));
 	}
@@ -182,28 +182,16 @@ void PointCloud::FitSphere(cl::CommandQueue& queue)
 	std::chrono::time_point<std::chrono::high_resolution_clock> start, end;
 	start = std::chrono::high_resolution_clock::now();
 
-	std::vector<cl_int4> indices;
+	std::vector<int> indices;
+	indices.resize(FIT_COUNT * ITER_NUM);
 	for (int i = 0; i < ITER_NUM; i++)
 	{
-		// choosing 4 random indices from candidate vector
-		int a, b, c, d;
-		a = rand() % candidates.size();
-		do {
-			b = rand() % candidates.size();
-		} while (b == a);
-		do {
-			c = rand() % candidates.size();
-		} while (c == a || c == b);
-		do {
-			d = rand() % candidates.size();
-		} while (d == a || d == b || d == c);
-		indices.push_back({ candidates[a], candidates[b], candidates[c], candidates[d] });
-		
-		/*
 		// points close in data are close in space => more likely part of same object
-		int a = rand() % (candidates.size() - 3);
-		indices.push_back({ candidates[a], candidates[a + 1], candidates[a + 2], candidates[a + 3] });
-		*/
+		int a = rand() % (candidates.size() - FIT_COUNT - 1);
+		for (int j = 0; j < FIT_COUNT; j++)
+		{
+			indices.push_back(candidates[a + j]);
+		}
 	}
 
 	try
@@ -211,7 +199,7 @@ void PointCloud::FitSphere(cl::CommandQueue& queue)
 		// set inlier buffer to all zeroes
 		std::vector<int> zero(ITER_NUM, 0);
 		queue.enqueueWriteBuffer(inlierBuffer, CL_TRUE, 0, ITER_NUM * sizeof(int), zero.data());
-		queue.enqueueWriteBuffer(indexBuffer, CL_TRUE, 0, ITER_NUM * sizeof(cl_int4), indices.data());
+		queue.enqueueWriteBuffer(indexBuffer, CL_TRUE, 0, FIT_COUNT * ITER_NUM * sizeof(int), indices.data());
 		queue.finish();
 
 		// acquire GL position buffer

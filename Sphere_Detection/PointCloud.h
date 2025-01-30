@@ -44,6 +44,7 @@ private:
 	const int POINT_CLOUD_SIZE = 14976;
 	const int CHANNELS = 4;
 	const int ITER_NUM = 4096;
+	const int FIT_COUNT = 8;
 
 	const float pointRenderSize = 5.f;
 
