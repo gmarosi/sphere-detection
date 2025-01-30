@@ -73,7 +73,7 @@ __kernel void calcSphere(
 	float x = f[0] / A[0 * 4 + 0];
     float y = f[1] / A[1 * 4 + 1];
     float z = f[2] / A[2 * 4 + 2];
-    float r = sqrt(f[3] + x * x + y * y + z * z);
+    float r = sqrt((f[3] / A[3 * 4 + 3]) + x * x + y * y + z * z);
 
 	result[g_id] = (float4)(
 		isinf(x) || isnan(x) ? 0 : x,
