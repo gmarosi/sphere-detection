@@ -104,16 +104,32 @@ __kernel void fitSphere(
 __kernel void reduce(
 	__global float*  inliers,
 	__global float4* spheres,
-	int offset)
+	__local  float*  scratch, // local for inlier values
+	__local  int*	 idx)	  // local for sphere global idx
 {
-	int g_id = get_global_id(0) * offset * 2;
-	int id_2 = g_id + offset;
+	int l_id = get_local_id(0);
+	int g_id = get_global_id(0);
+	scratch[l_id] = inliers[g_id];
+	idx[l_id]	  = g_id;
 
-	// idea is to also swap sphere coordinates along with inlier ratios
-	if(inliers[g_id] < inliers[id_2])
+	barrier(CLK_LOCAL_MEM_FENCE);
+
+	// local reduction
+	// swap inlier values along with sphere idx
+	for (int offset = get_local_size(0) / 2; offset != 0; offset /= 2)
 	{
-		inliers[g_id] = inliers[id_2];
-		spheres[g_id] = spheres[id_2];
+		if (l_id < offset && scratch[l_id] < scratch[l_id + offset])
+		{
+			scratch[l_id] = scratch[l_id + offset];
+			idx[l_id] = idx[l_id + offset];
+		}
+		barrier(CLK_LOCAL_MEM_FENCE);
+	}
+
+	if (l_id == 0)
+	{
+		inliers[get_group_id(0)] = scratch[0];
+		spheres[get_group_id(0)] = spheres[idx[0]];
 	}
 }
 

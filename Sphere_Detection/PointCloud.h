@@ -43,7 +43,7 @@ public:
 private:
 	const int POINT_CLOUD_SIZE = 14976;
 	const int CHANNELS = 4;
-	const int ITER_NUM = 5000;
+	const int ITER_NUM = 4096;
 
 	const float pointRenderSize = 5.f;
 

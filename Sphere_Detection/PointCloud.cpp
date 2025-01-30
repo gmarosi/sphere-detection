@@ -2,6 +2,10 @@
 #include <fstream>
 #include <chrono>
 
+unsigned round_up_div(unsigned a, unsigned b) {
+	return static_cast<int>(ceil((double)a / b));
+}
+
 PointCloud::PointCloud()
 {
 	mapMem = nullptr;
@@ -234,15 +238,16 @@ void PointCloud::FitSphere(cl::CommandQueue& queue)
 		queue.enqueueNDRangeKernel(sphereFitKernel, cl::NullRange, ITER_NUM, cl::NullRange);
 		
 		// reduction to get sphere with highest inlier ratio
+		const unsigned GROUP_SIZE = 64;
 		reduceKernel.setArg(0, inlierBuffer);
 		reduceKernel.setArg(1, sphereBuffer);
+		reduceKernel.setArg(2, GROUP_SIZE * sizeof(float), nullptr);
+		reduceKernel.setArg(3, GROUP_SIZE * sizeof(int), nullptr);
 
-		for (int offset = 1; offset < ITER_NUM; offset <<= 1)
+		for (unsigned rem_size = ITER_NUM; rem_size > 1; rem_size = round_up_div(rem_size, GROUP_SIZE))
 		{
-			reduceKernel.setArg(2, offset);
-
-			int global_size = ITER_NUM / (offset * 2);
-			queue.enqueueNDRangeKernel(reduceKernel, cl::NullRange, global_size, cl::NullRange);
+			int t1 = round_up_div(rem_size, GROUP_SIZE) * GROUP_SIZE;
+			queue.enqueueNDRangeKernel(reduceKernel, cl::NullRange, t1, GROUP_SIZE);
 		}
 		
 		// color points which are on the best sphere
