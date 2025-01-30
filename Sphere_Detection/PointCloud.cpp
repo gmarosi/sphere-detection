@@ -1,5 +1,6 @@
 #include "PointCloud.h"
 #include <fstream>
+#include <chrono>
 
 PointCloud::PointCloud()
 {
@@ -174,6 +175,9 @@ void PointCloud::FitSphere(cl::CommandQueue& queue)
 		- calc spheres in kernel
 	*/
 
+	std::chrono::time_point<std::chrono::high_resolution_clock> start, end;
+	start = std::chrono::high_resolution_clock::now();
+
 	std::vector<cl_int4> indices;
 	for (int i = 0; i < ITER_NUM; i++)
 	{
@@ -215,9 +219,12 @@ void PointCloud::FitSphere(cl::CommandQueue& queue)
 
 		queue.enqueueNDRangeKernel(sphereCalcKernel, cl::NullRange, ITER_NUM, cl::NullRange);
 
+		// Debug print for spheres
+		/*
 		glm::vec4 sphere;
 		queue.enqueueReadBuffer(sphereBuffer, CL_TRUE, 0, sizeof(cl_float4), &sphere);
 		std::cout << sphere.x << "; " << sphere.y << "; " << sphere.z << "; r: " << sphere.w << std::endl;
+		*/
 
 		// evaluate sphere inlier ratio
 		sphereFitKernel.setArg(0, posBuffer);
@@ -245,6 +252,10 @@ void PointCloud::FitSphere(cl::CommandQueue& queue)
 		queue.enqueueNDRangeKernel(sphereFillKernel, cl::NullRange, POINT_CLOUD_SIZE, cl::NullRange);
 
 		queue.enqueueReleaseGLObjects(&acq);
+
+		end = std::chrono::high_resolution_clock::now();
+		std::chrono::duration<double> elapsed = end - start;
+		std::cout << elapsed.count() * 1000 << " ms" << std::endl;
 	}
 	catch (cl::Error error)
 	{
