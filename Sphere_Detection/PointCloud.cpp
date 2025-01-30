@@ -1,6 +1,7 @@
 #include "PointCloud.h"
 #include <fstream>
 #include <chrono>
+#include <random>
 
 unsigned round_up_div(unsigned a, unsigned b) {
 	return static_cast<int>(ceil((double)a / b));
@@ -192,6 +193,21 @@ void PointCloud::FitSphere(cl::CommandQueue& queue)
 		{
 			indices.push_back(candidates[a + j]);
 		}
+
+		/*
+		// generate FIT_COUNT unique random indices
+		// this solution is ~ 45 ms slower
+		std::set<int> rnds;
+		while (rnds.size() < FIT_COUNT)
+		{
+			rnds.insert(rand() % candidates.size());
+		}
+
+		for (auto it = rnds.begin(); it != rnds.end(); it++)
+		{
+			indices.push_back(candidates[*it]);
+		}
+		*/
 	}
 
 	try
