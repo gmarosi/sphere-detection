@@ -208,6 +208,9 @@ void PointCloud::FitSphere(cl::CommandQueue& queue)
 
 	try
 	{
+		// set inlier buffer to all zeroes
+		std::vector<int> zero(ITER_NUM, 0);
+		queue.enqueueWriteBuffer(inlierBuffer, CL_TRUE, 0, ITER_NUM * sizeof(int), zero.data());
 		queue.enqueueWriteBuffer(indexBuffer, CL_TRUE, 0, ITER_NUM * sizeof(cl_int4), indices.data());
 		queue.finish();
 
