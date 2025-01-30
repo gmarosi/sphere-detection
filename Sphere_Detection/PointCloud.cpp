@@ -104,7 +104,7 @@ bool PointCloud::InitCl(cl::Context& context, const cl::vector<cl::Device>& devi
 		posBuffer    = cl::BufferGL(*clContext, CL_MEM_READ_WRITE, posVBO);
 		indexBuffer  = cl::Buffer(*clContext, CL_MEM_WRITE_ONLY, ITER_NUM * sizeof(cl_int4));
 		sphereBuffer = cl::Buffer(*clContext, CL_MEM_READ_ONLY, ITER_NUM * sizeof(cl_float4));
-		inlierBuffer = cl::Buffer(*clContext, CL_MEM_READ_WRITE, ITER_NUM * sizeof(float));
+		inlierBuffer = cl::Buffer(*clContext, CL_MEM_READ_WRITE, ITER_NUM * sizeof(int));
 	}
 	catch (cl::Error error)
 	{
@@ -234,8 +234,9 @@ void PointCloud::FitSphere(cl::CommandQueue& queue)
 		sphereFitKernel.setArg(0, posBuffer);
 		sphereFitKernel.setArg(1, sphereBuffer);
 		sphereFitKernel.setArg(2, inlierBuffer);
+		sphereFitKernel.setArg(3, ITER_NUM);
 
-		queue.enqueueNDRangeKernel(sphereFitKernel, cl::NullRange, ITER_NUM, cl::NullRange);
+		queue.enqueueNDRangeKernel(sphereFitKernel, cl::NullRange, POINT_CLOUD_SIZE, cl::NullRange);
 		
 		// reduction to get sphere with highest inlier ratio
 		const unsigned GROUP_SIZE = 64;

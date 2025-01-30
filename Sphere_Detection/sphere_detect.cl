@@ -86,25 +86,28 @@ __kernel void calcSphere(
 __kernel void fitSphere(
 	__global float4* data,
 	__global float4* spheres,
-	__global float*  result)
+	__global int*  result,
+	int ITER_NUM)
 {
 	int g_id = get_global_id(0);
-	float4 sphere = spheres[g_id];
+	float4 point = data[g_id];
 
-	float sum = 0;
-	// naive implementation
-	for(int i = 0; i < CLOUD_SIZE; i++)
+	// reverse naive implementation
+	for(int i = 0; i < ITER_NUM; i++)
 	{
+		float4 sphere = spheres[i];
 		float dist = distance(data[i].xyz, sphere.xyz);
-		sum += fabs(sphere.w - dist) < EPSILON ? 1 : 0;
+		if(fabs(sphere.w - dist) < EPSILON)
+		{
+			atomic_inc(&result[i]);
+		}
 	}
-	result[g_id] = sum / CLOUD_SIZE;
 }
 
 __kernel void reduce(
-	__global float*  inliers,
+	__global int*  inliers,
 	__global float4* spheres,
-	__local  float*  scratch, // local for inlier values
+	__local  int*  scratch, // local for inlier values
 	__local  int*	 idx)	  // local for sphere global idx
 {
 	int l_id = get_local_id(0);
