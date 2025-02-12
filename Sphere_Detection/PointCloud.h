@@ -27,6 +27,8 @@
 
 #include "SHMManager.h"
 
+enum FitMode {SPHERE, CYLINDER};
+
 class PointCloud
 {
 public:
@@ -38,7 +40,9 @@ public:
 	void Update();
 	void Render(const glm::mat4& viewProj);
 
-	void FitSphere(cl::CommandQueue& queue);
+	void Fit(cl::CommandQueue& queue);
+
+	void ChangeMode();
 
 private:
 	const int POINT_CLOUD_SIZE = 14976;
@@ -48,7 +52,9 @@ private:
 	const float pointRenderSize = 5.f;
 
 	SHMManager *mapMem;
-	bool		fitSphere = false;
+	bool		fit = false;
+
+	FitMode mode;
 
 	std::vector<glm::vec4>	pointsPos;
 	std::vector<float>		pointsIntensity;
@@ -63,15 +69,33 @@ private:
 
 	// CL
 	cl::Context* clContext;
-	cl::Program  clProgram;
+	cl::BufferGL posBuffer;
 
-	cl::Kernel	sphereCalcKernel;
-	cl::Kernel	sphereFitKernel;
-	cl::Kernel	reduceKernel;
-	cl::Kernel  sphereFillKernel;
+	// Sphere detection
+	cl::Program clSphereProgram;
 
-	cl::BufferGL	posBuffer;
-	cl::Buffer		indexBuffer;
-	cl::Buffer		sphereBuffer;
-	cl::Buffer		inlierBuffer;
+	cl::Kernel sphereCalcKernel;
+	cl::Kernel sphereFitKernel;
+	cl::Kernel reduceKernel;
+	cl::Kernel sphereFillKernel;
+
+	cl::Buffer indexBuffer;
+	cl::Buffer sphereBuffer;
+	cl::Buffer inlierBuffer;
+
+	// Cylinder detection
+	cl::Program clCylinderProgram;
+
+	cl::Kernel planeCalcKernel;
+	cl::Kernel planeFitKernel;
+	cl::Kernel planeReduceKernel;
+	cl::Kernel planeColorKernel;
+
+	cl::Buffer planeIdxBuffer;
+	cl::Buffer planePointsBuffer;
+	cl::Buffer planeNormalsBuffer;
+	cl::Buffer planeInliersBuffer;
+
+	void FitSphere(cl::CommandQueue& queue);
+	void FitCylinder(cl::CommandQueue& queue);
 };

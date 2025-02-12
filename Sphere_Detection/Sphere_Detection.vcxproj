@@ -166,6 +166,7 @@
     <None Include="axis.vert" />
     <None Include="cloud.frag" />
     <None Include="cloud.vert" />
+    <None Include="cylinder_detect.cl" />
     <None Include="Includes\BufferObject.inl" />
     <None Include="Includes\ProgramObject.inl" />
     <None Include="Includes\TextureObject.inl" />

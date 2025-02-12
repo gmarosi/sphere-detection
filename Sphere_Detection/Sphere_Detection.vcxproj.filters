@@ -133,5 +133,8 @@
     <None Include="cloud.vert">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="cylinder_detect.cl">
+      <Filter>Kernels</Filter>
+    </None>
   </ItemGroup>
 </Project>

@@ -9,6 +9,20 @@ unsigned round_up_div(unsigned a, unsigned b) {
 PointCloud::PointCloud()
 {
 	mapMem = nullptr;
+	mode = SPHERE;
+}
+
+void PointCloud::ChangeMode()
+{
+	switch (mode)
+	{
+	case SPHERE: 
+		mode = CYLINDER;
+		break;
+	case CYLINDER:
+		mode = SPHERE;
+		break;
+	}
 }
 
 bool PointCloud::Init(const MemoryNames& memNames)
@@ -80,33 +94,60 @@ bool PointCloud::InitCl(cl::Context& context, const cl::vector<cl::Device>& devi
 {
 	try
 	{
-		// Read kernel source code
-		std::ifstream sourceFile("sphere_detect.cl");
-		std::string sourceCode(std::istreambuf_iterator<char>(sourceFile), (std::istreambuf_iterator<char>()));
-		cl::Program::Sources source(1, std::make_pair(sourceCode.c_str(), sourceCode.length() + 1));
+		// Sphere detection init
+		std::ifstream sphereFile("sphere_detect.cl");
+		std::string sphereCode(std::istreambuf_iterator<char>(sphereFile), (std::istreambuf_iterator<char>()));
+		cl::Program::Sources sphereSource(1, std::make_pair(sphereCode.c_str(), sphereCode.length() + 1));
 
 		clContext = &context;
-		clProgram = cl::Program(*clContext, source);
+		clSphereProgram = cl::Program(*clContext, sphereSource);
 
 		try {
-			clProgram.build(devices);
+			clSphereProgram.build(devices);
 		}
-		catch (cl::Error error) {
-			std::cout << clProgram.getBuildInfo<CL_PROGRAM_BUILD_LOG>(devices[0]) << std::endl;
+		catch (cl::Error &error) {
+			std::cout << clSphereProgram.getBuildInfo<CL_PROGRAM_BUILD_LOG>(devices[0]) << std::endl;
 			throw error;
 		}
 
-		sphereCalcKernel = cl::Kernel(clProgram, "calcSphere");
-		sphereFitKernel  = cl::Kernel(clProgram, "fitSphere");
-		reduceKernel	 = cl::Kernel(clProgram, "reduce");
-		sphereFillKernel = cl::Kernel(clProgram, "sphereFill");
+		sphereCalcKernel = cl::Kernel(clSphereProgram, "calcSphere");
+		sphereFitKernel  = cl::Kernel(clSphereProgram, "fitSphere");
+		reduceKernel	 = cl::Kernel(clSphereProgram, "reduce");
+		sphereFillKernel = cl::Kernel(clSphereProgram, "sphereFill");
 
 		posBuffer    = cl::BufferGL(*clContext, CL_MEM_READ_WRITE, posVBO);
 		indexBuffer  = cl::Buffer(*clContext, CL_MEM_WRITE_ONLY, ITER_NUM * sizeof(cl_int4));
 		sphereBuffer = cl::Buffer(*clContext, CL_MEM_READ_ONLY, ITER_NUM * sizeof(cl_float4));
 		inlierBuffer = cl::Buffer(*clContext, CL_MEM_READ_WRITE, ITER_NUM * sizeof(int));
+
+		// Cylinder detection init
+		std::ifstream cylinderFile("cylinder_detect.cl");
+		std::string cylinderCode(std::istreambuf_iterator<char>(cylinderFile), (std::istreambuf_iterator<char>()));
+		cl::Program::Sources cylinderSource(1, std::make_pair(cylinderCode.c_str(), cylinderCode.length() + 1));
+
+		clCylinderProgram = cl::Program(*clContext, cylinderSource);
+
+		try
+		{
+			clCylinderProgram.build(devices);
+		}
+		catch (cl::Error& error)
+		{
+			std::cout << clCylinderProgram.getBuildInfo<CL_PROGRAM_BUILD_LOG>(devices[0]) << std::endl;
+			throw error;
+		}
+
+		planeCalcKernel	  = cl::Kernel(clCylinderProgram, "calcPlane");
+		planeFitKernel	  = cl::Kernel(clCylinderProgram, "fitPlane");
+		planeReduceKernel = cl::Kernel(clCylinderProgram, "reducePlane");
+		planeColorKernel = cl::Kernel(clCylinderProgram, "fillPlane");
+
+		planeIdxBuffer	   = cl::Buffer(*clContext, CL_MEM_READ_ONLY, ITER_NUM * sizeof(cl_int3));
+		planePointsBuffer  = cl::Buffer(*clContext, CL_MEM_READ_WRITE, ITER_NUM * sizeof(cl_float3));
+		planeNormalsBuffer = cl::Buffer(*clContext, CL_MEM_READ_WRITE, ITER_NUM * sizeof(cl_float3));
+		planeInliersBuffer = cl::Buffer(*clContext, CL_MEM_READ_WRITE, ITER_NUM * sizeof(int));
 	}
-	catch (cl::Error error)
+	catch (cl::Error& error)
 	{
 		std::cout << "PointCloud::InitCl : " << error.what() << std::endl;
 		return false;
@@ -119,7 +160,7 @@ void PointCloud::Update()
 {
 	if (mapMem->hasBufferChanged())
 	{
-		fitSphere = true;
+		fit = true;
 		std::vector<float> rawData;
 		rawData.resize(POINT_CLOUD_SIZE * CHANNELS);
 		mapMem->readData(rawData.data());
@@ -132,7 +173,11 @@ void PointCloud::Update()
 			pointsIntensity[i / CHANNELS] = rawData[i + 3];
 
 			// storing indices of candidate points
-			if (glm::distance(glm::vec2(0, 0), glm::vec2(point.x, point.z)) < 6 && point.z < 0)
+			if (mode == SPHERE && glm::distance(glm::vec2(0, 0), glm::vec2(point.x, point.z)) < 6 && point.z < 0)
+			{
+				candidates.push_back(i / CHANNELS);
+			}
+			else if (mode == CYLINDER && point.y < 1)
 			{
 				candidates.push_back(i / CHANNELS);
 			}
@@ -167,11 +212,24 @@ void PointCloud::Render(const glm::mat4& viewProj)
 	glDisable(GL_DEPTH_TEST);
 }
 
+void PointCloud::Fit(cl::CommandQueue& queue)
+{
+	switch (mode)
+	{
+	case SPHERE:
+		FitSphere(queue);
+		break;
+	case CYLINDER:
+		FitCylinder(queue);
+		break;
+	}
+}
+
 void PointCloud::FitSphere(cl::CommandQueue& queue)
 {
-	if (!fitSphere)
+	if (!fit)
 		return;
-	fitSphere = false;
+	fit = false;
 
 	/*
 	Idea: calculate eg. 1000 spheres w/ their centers and radii
@@ -266,10 +324,90 @@ void PointCloud::FitSphere(cl::CommandQueue& queue)
 		std::chrono::duration<double> elapsed = end - start;
 		std::cout << elapsed.count() * 1000 << " ms" << std::endl;
 	}
-	catch (cl::Error error)
+	catch (cl::Error& error)
 	{
 		std::cout << "PointCloud::FitSphere : " << error.what() << std::endl;
 		exit(1);
 	}
+}
 
+void PointCloud::FitCylinder(cl::CommandQueue& queue)
+{
+	if (!fit)
+		return;
+	fit = false;
+
+	std::vector<cl_int3> indices;
+	for (int i = 0; i < ITER_NUM; i++)
+	{
+		// choosing 4 random indices from candidate vector
+		int a, b, c, d;
+		a = rand() % candidates.size();
+		do {
+			b = rand() % candidates.size();
+		} while (b == a);
+		do {
+			c = rand() % candidates.size();
+		} while (c == a || c == b);
+		indices.push_back({ candidates[a], candidates[b], candidates[c] });
+	}
+
+	try
+	{
+		// set inlier buffer to all zeroes
+		std::vector<int> zero(ITER_NUM, 0);
+		queue.enqueueWriteBuffer(planeInliersBuffer, CL_TRUE, 0, ITER_NUM * sizeof(int), zero.data());
+		queue.enqueueWriteBuffer(planeIdxBuffer, CL_TRUE, 0, ITER_NUM * sizeof(cl_int3), indices.data());
+		queue.finish();
+
+		// acquire GL position buffer
+		cl::vector<cl::Memory> acq;
+		acq.push_back(posBuffer);
+		queue.enqueueAcquireGLObjects(&acq);
+
+		// calculate planes
+		planeCalcKernel.setArg(0, posBuffer);
+		planeCalcKernel.setArg(1, planeIdxBuffer);
+		planeCalcKernel.setArg(2, planePointsBuffer);
+		planeCalcKernel.setArg(3, planeNormalsBuffer);
+
+		queue.enqueueNDRangeKernel(planeCalcKernel, cl::NullRange, ITER_NUM, cl::NullRange);
+
+		// evaluate plane inlier ratio
+		planeFitKernel.setArg(0, posBuffer);
+		planeFitKernel.setArg(1, planePointsBuffer);
+		planeFitKernel.setArg(2, planeNormalsBuffer);
+		planeFitKernel.setArg(3, planeInliersBuffer);
+		planeFitKernel.setArg(4, ITER_NUM);
+
+		queue.enqueueNDRangeKernel(planeFitKernel, cl::NullRange, POINT_CLOUD_SIZE, cl::NullRange);
+
+		// reduction to get plane with highest inlier count
+		const unsigned GROUP_SIZE = 64;
+		planeReduceKernel.setArg(0, planeInliersBuffer);
+		planeReduceKernel.setArg(1, planePointsBuffer);
+		planeReduceKernel.setArg(2, planeNormalsBuffer);
+		planeReduceKernel.setArg(3, GROUP_SIZE * sizeof(float), nullptr);
+		planeReduceKernel.setArg(4, GROUP_SIZE * sizeof(int), nullptr);
+
+		for (unsigned rem_size = ITER_NUM; rem_size > 1; rem_size = round_up_div(rem_size, GROUP_SIZE))
+		{
+			int t1 = round_up_div(rem_size, GROUP_SIZE) * GROUP_SIZE;
+			queue.enqueueNDRangeKernel(planeReduceKernel, cl::NullRange, t1, GROUP_SIZE);
+		}
+
+		// color plane
+		planeColorKernel.setArg(0, posBuffer);
+		planeColorKernel.setArg(1, planePointsBuffer);
+		planeColorKernel.setArg(2, planeNormalsBuffer);
+
+		queue.enqueueNDRangeKernel(planeColorKernel, cl::NullRange, POINT_CLOUD_SIZE, cl::NullRange);
+
+		queue.enqueueReleaseGLObjects(&acq);
+	}
+	catch (cl::Error& error)
+	{
+		std::cout << "PointCloud::FitCylinder : " << error.what() << std::endl;
+		exit(1);
+	}
 }
