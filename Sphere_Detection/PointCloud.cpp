@@ -177,7 +177,7 @@ void PointCloud::Update()
 			{
 				candidates.push_back(i / CHANNELS);
 			}
-			else if (mode == CYLINDER && point.y < 1)
+			else if (mode == CYLINDER && point.y < -1)
 			{
 				candidates.push_back(i / CHANNELS);
 			}

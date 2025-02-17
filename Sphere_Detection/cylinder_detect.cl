@@ -1,5 +1,5 @@
 const int CLOUD_SIZE = 14976;
-const float EPSILON = 0.1;
+const float EPSILON = 0.05;
 
 __kernel void calcPlane(
 	__global float4* data,
@@ -18,7 +18,13 @@ __kernel void calcPlane(
 	// calculate normal of plane defined by the 3 points
 	float3 v1 = p2 - p1;
 	float3 v2 = p3 - p1;
-	float3 norm = cross(v1, v2);
+	float3 norm = normalize(cross(v1, v2));
+
+	// filter out nullvectors
+	if(norm.x == 0 && norm.y == 0 && norm.z == 0)
+	{
+		norm = (float3)(0, 1, 0);
+	};
 
 	// store plane data
 	points[g_id] = p1;
@@ -92,10 +98,7 @@ __kernel void fillPlane(
 
 	float3 p = points[0];
 	float3 n = normals[0];
-		
+	
 	// point is on plane if |<normal, point - plane_point>| < EPSILON
-	if(fabs(dot(n, point - p)) < EPSILON)
-	{
-		data[g_id].w = 1;
-	}
+	data[g_id].w = fabs(dot(n, point - p)) < EPSILON;
 }
