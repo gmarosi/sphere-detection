@@ -140,12 +140,21 @@ bool PointCloud::InitCl(cl::Context& context, const cl::vector<cl::Device>& devi
 		planeCalcKernel	  = cl::Kernel(clCylinderProgram, "calcPlane");
 		planeFitKernel	  = cl::Kernel(clCylinderProgram, "fitPlane");
 		planeReduceKernel = cl::Kernel(clCylinderProgram, "reducePlane");
-		planeColorKernel = cl::Kernel(clCylinderProgram, "fillPlane");
+		planeFillKernel	  = cl::Kernel(clCylinderProgram, "fillPlane");
 
 		planeIdxBuffer	   = cl::Buffer(*clContext, CL_MEM_READ_ONLY, ITER_NUM * sizeof(cl_int3));
 		planePointsBuffer  = cl::Buffer(*clContext, CL_MEM_READ_WRITE, ITER_NUM * sizeof(cl_float3));
 		planeNormalsBuffer = cl::Buffer(*clContext, CL_MEM_READ_WRITE, ITER_NUM * sizeof(cl_float3));
 		planeInliersBuffer = cl::Buffer(*clContext, CL_MEM_READ_WRITE, ITER_NUM * sizeof(int));
+
+		cylinderCalcKernel	 = cl::Kernel(clCylinderProgram, "calcCylinder");
+		cylinderFitKernel	 = cl::Kernel(clCylinderProgram, "fitCylinder");
+		cylinderReduceKernel = cl::Kernel(clCylinderProgram, "reduceCylinder");
+		cylinderColorKernel  = cl::Kernel(clCylinderProgram, "colorCylinder");
+
+		cylinderRandBuffer	  = cl::Buffer(*clContext, CL_MEM_READ_ONLY, CYLINDER_ITER_NUM * sizeof(cl_int3));
+		cylinderDataBuffer	  = cl::Buffer(*clContext, CL_MEM_READ_WRITE, CYLINDER_ITER_NUM * sizeof(cl_int3));
+		cylinderInliersBuffer = cl::Buffer(*clContext, CL_MEM_READ_WRITE, CYLINDER_ITER_NUM * sizeof(int));
 	}
 	catch (cl::Error& error)
 	{
@@ -340,8 +349,8 @@ void PointCloud::FitCylinder(cl::CommandQueue& queue)
 	std::vector<cl_int3> indices;
 	for (int i = 0; i < ITER_NUM; i++)
 	{
-		// choosing 4 random indices from candidate vector
-		int a, b, c, d;
+		// choosing 3 random indices from candidate vector
+		int a, b, c;
 		a = rand() % candidates.size();
 		do {
 			b = rand() % candidates.size();
@@ -396,12 +405,76 @@ void PointCloud::FitCylinder(cl::CommandQueue& queue)
 			queue.enqueueNDRangeKernel(planeReduceKernel, cl::NullRange, t1, GROUP_SIZE);
 		}
 
-		// color plane
-		planeColorKernel.setArg(0, posBuffer);
-		planeColorKernel.setArg(1, planePointsBuffer);
-		planeColorKernel.setArg(2, planeNormalsBuffer);
+		// mark points that are part of the best plane
+		planeFillKernel.setArg(0, posBuffer);
+		planeFillKernel.setArg(1, planePointsBuffer);
+		planeFillKernel.setArg(2, planeNormalsBuffer);
 
-		queue.enqueueNDRangeKernel(planeColorKernel, cl::NullRange, POINT_CLOUD_SIZE, cl::NullRange);
+		queue.enqueueNDRangeKernel(planeFillKernel, cl::NullRange, POINT_CLOUD_SIZE, cl::NullRange);
+
+		// create new buffer with points that are part of the plane
+		std::vector<glm::vec4> pcl;
+		std::vector<cl_float3> planePoints;
+		pcl.resize(POINT_CLOUD_SIZE);
+		queue.enqueueReadBuffer(posBuffer, CL_TRUE, 0, POINT_CLOUD_SIZE * sizeof(glm::vec4), pcl.data());
+
+		for (int i = 0; i < POINT_CLOUD_SIZE; i++)
+		{
+			if (pcl[i].w != 0)
+			{
+				// store both the coords and the original index
+				planePoints.push_back({pcl[i].x, pcl[i].y, pcl[i].z});
+			}
+		}
+		cylinderPointsBuffer = cl::Buffer(*clContext, CL_MEM_READ_WRITE, planePoints.size() * sizeof(cl_float3));
+
+		// get random indices for RANSAC (0 .. planePoints.size())
+		std::vector<cl_int3> indices;
+		for (int i = 0; i < CYLINDER_ITER_NUM; i++)
+		{
+			int a, b, c;
+			a = rand() % planePoints.size();
+			do {
+				b = rand() % planePoints.size();
+			} while (b == a);
+			do {
+				c = rand() % planePoints.size();
+			} while (c == a || c == b);
+			indices.push_back({ a, b, c });
+		}
+
+		queue.enqueueWriteBuffer(cylinderRandBuffer, CL_FALSE, 0, CYLINDER_ITER_NUM * sizeof(cl_int3), indices.data());
+		queue.enqueueWriteBuffer(cylinderPointsBuffer, CL_TRUE, 0, planePoints.size() * sizeof(glm::vec3), planePoints.data());
+
+		cylinderCalcKernel.setArg(0, cylinderRandBuffer);
+		cylinderCalcKernel.setArg(1, cylinderPointsBuffer);
+		cylinderCalcKernel.setArg(2, planeNormalsBuffer);
+		cylinderCalcKernel.setArg(3, cylinderDataBuffer);
+
+		queue.enqueueNDRangeKernel(cylinderCalcKernel, cl::NullRange, CYLINDER_ITER_NUM, cl::NullRange);
+
+		cylinderFitKernel.setArg(0, posBuffer);
+		cylinderFitKernel.setArg(1, cylinderDataBuffer);
+		cylinderFitKernel.setArg(2, cylinderInliersBuffer);
+		cylinderFitKernel.setArg(3, CYLINDER_ITER_NUM);
+
+		queue.enqueueNDRangeKernel(cylinderFitKernel, cl::NullRange, POINT_CLOUD_SIZE, cl::NullRange);
+
+		cylinderReduceKernel.setArg(0, cylinderInliersBuffer);
+		cylinderReduceKernel.setArg(1, cylinderDataBuffer);
+		cylinderReduceKernel.setArg(2, GROUP_SIZE * sizeof(float), nullptr);
+		cylinderReduceKernel.setArg(3, GROUP_SIZE * sizeof(int), nullptr);
+
+		for (unsigned rem_size = CYLINDER_ITER_NUM; rem_size > 1; rem_size = round_up_div(rem_size, GROUP_SIZE))
+		{
+			int t1 = round_up_div(rem_size, GROUP_SIZE) * GROUP_SIZE;
+			queue.enqueueNDRangeKernel(cylinderReduceKernel, cl::NullRange, t1, GROUP_SIZE);
+		}
+
+		cylinderColorKernel.setArg(0, posBuffer);
+		cylinderColorKernel.setArg(1, cylinderDataBuffer);
+
+		queue.enqueueNDRangeKernel(cylinderColorKernel, cl::NullRange, POINT_CLOUD_SIZE, cl::NullRange);
 
 		queue.enqueueReleaseGLObjects(&acq);
 	}

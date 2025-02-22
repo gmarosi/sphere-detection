@@ -48,6 +48,7 @@ private:
 	const int POINT_CLOUD_SIZE = 14976;
 	const int CHANNELS = 4;
 	const int ITER_NUM = 4096;
+	const int CYLINDER_ITER_NUM = 1024;
 
 	const float pointRenderSize = 5.f;
 
@@ -89,12 +90,22 @@ private:
 	cl::Kernel planeCalcKernel;
 	cl::Kernel planeFitKernel;
 	cl::Kernel planeReduceKernel;
-	cl::Kernel planeColorKernel;
+	cl::Kernel planeFillKernel;
 
 	cl::Buffer planeIdxBuffer;
 	cl::Buffer planePointsBuffer;
 	cl::Buffer planeNormalsBuffer;
 	cl::Buffer planeInliersBuffer;
+
+	cl::Kernel cylinderCalcKernel;
+	cl::Kernel cylinderFitKernel;
+	cl::Kernel cylinderReduceKernel;
+	cl::Kernel cylinderColorKernel;
+
+	cl::Buffer cylinderPointsBuffer;
+	cl::Buffer cylinderRandBuffer;
+	cl::Buffer cylinderDataBuffer;
+	cl::Buffer cylinderInliersBuffer;
 
 	void FitSphere(cl::CommandQueue& queue);
 	void FitCylinder(cl::CommandQueue& queue);
