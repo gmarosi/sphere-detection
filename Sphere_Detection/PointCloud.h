@@ -1,6 +1,7 @@
 #pragma once
 
 #include "SphereFitter.h"
+#include "CylinderFitter.h"
 #include "SHMManager.h"
 
 enum FitMode {SPHERE, CYLINDER};
@@ -44,33 +45,8 @@ private:
 	GLuint intensityVBO;
 
 	// CL
-	cl::Context* clContext;
 	cl::BufferGL posBuffer;
 
 	SphereFitter sphereFitter;
-
-	// Cylinder detection
-	cl::Program clCylinderProgram;
-
-	cl::Kernel planeCalcKernel;
-	cl::Kernel planeFitKernel;
-	cl::Kernel planeReduceKernel;
-	cl::Kernel planeFillKernel;
-
-	cl::Buffer planeIdxBuffer;
-	cl::Buffer planePointsBuffer;
-	cl::Buffer planeNormalsBuffer;
-	cl::Buffer planeInliersBuffer;
-
-	cl::Kernel cylinderCalcKernel;
-	cl::Kernel cylinderFitKernel;
-	cl::Kernel cylinderReduceKernel;
-	cl::Kernel cylinderColorKernel;
-
-	cl::Buffer cylinderPointsBuffer;
-	cl::Buffer cylinderRandBuffer;
-	cl::Buffer cylinderDataBuffer;
-	cl::Buffer cylinderInliersBuffer;
-
-	void FitCylinder(cl::CommandQueue& queue);
+	CylinderFitter cylinderFitter;
 };

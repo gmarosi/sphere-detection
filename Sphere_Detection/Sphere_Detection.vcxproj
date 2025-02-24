@@ -133,6 +133,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="App.cpp" />
+    <ClCompile Include="CylinderFitter.cpp" />
     <ClCompile Include="Includes\gCamera.cpp" />
     <ClCompile Include="Includes\GLconversions.cpp" />
     <ClCompile Include="Includes\GLDebugMessageCallback.cpp" />
@@ -148,6 +149,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="App.h" />
+    <ClInclude Include="CylinderFitter.h" />
     <ClInclude Include="IFitter.h" />
     <ClInclude Include="Includes\BufferObject.h" />
     <ClInclude Include="Includes\gCamera.h" />
