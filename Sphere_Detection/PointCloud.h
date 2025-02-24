@@ -60,6 +60,7 @@ private:
 	std::vector<glm::vec4>	pointsPos;
 	std::vector<float>		pointsIntensity;
 	std::vector<int>		candidates;
+	std::vector<cl_float4>	candidatesPos;
 
 	// GL
 	ProgramObject program;

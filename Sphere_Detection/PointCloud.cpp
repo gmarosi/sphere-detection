@@ -182,9 +182,10 @@ void PointCloud::Update()
 			pointsIntensity[i / CHANNELS] = rawData[i + 3];
 
 			// storing indices of candidate points
-			if (mode == SPHERE && glm::distance(glm::vec2(0, 0), glm::vec2(point.x, point.z)) < 6 && point.z < 0)
+			if (mode == SPHERE && glm::distance(glm::vec2(0, 0), glm::vec2(point.x, point.z)) < 6 && point.z < 0.2 && point.y > -1.5)
 			{
 				candidates.push_back(i / CHANNELS);
+				candidatesPos.push_back({point.x, point.y, point.z, 0});
 			}
 			else if (mode == CYLINDER && point.y < -1)
 			{
@@ -265,12 +266,6 @@ void PointCloud::FitSphere(cl::CommandQueue& queue)
 			d = rand() % candidates.size();
 		} while (d == a || d == b || d == c);
 		indices.push_back({ candidates[a], candidates[b], candidates[c], candidates[d] });
-		
-		/*
-		// points close in data are close in space => more likely part of same object
-		int a = rand() % (candidates.size() - 3);
-		indices.push_back({ candidates[a], candidates[a + 1], candidates[a + 2], candidates[a + 3] });
-		*/
 	}
 
 	try
@@ -293,20 +288,16 @@ void PointCloud::FitSphere(cl::CommandQueue& queue)
 
 		queue.enqueueNDRangeKernel(sphereCalcKernel, cl::NullRange, ITER_NUM, cl::NullRange);
 
-		// Debug print for spheres
-		/*
-		glm::vec4 sphere;
-		queue.enqueueReadBuffer(sphereBuffer, CL_TRUE, 0, sizeof(cl_float4), &sphere);
-		std::cout << sphere.x << "; " << sphere.y << "; " << sphere.z << "; r: " << sphere.w << std::endl;
-		*/
-
 		// evaluate sphere inlier ratio
-		sphereFitKernel.setArg(0, posBuffer);
+		cl::Buffer candidatesBuffer(*clContext, CL_MEM_READ_ONLY, candidatesPos.size() * sizeof(cl_float4));
+		queue.enqueueWriteBuffer(candidatesBuffer, CL_TRUE, 0, candidatesPos.size() * sizeof(cl_float4), candidatesPos.data());
+
+		sphereFitKernel.setArg(0, candidatesBuffer);
 		sphereFitKernel.setArg(1, sphereBuffer);
 		sphereFitKernel.setArg(2, inlierBuffer);
 		sphereFitKernel.setArg(3, ITER_NUM);
 
-		queue.enqueueNDRangeKernel(sphereFitKernel, cl::NullRange, POINT_CLOUD_SIZE, cl::NullRange);
+		queue.enqueueNDRangeKernel(sphereFitKernel, cl::NullRange, candidatesPos.size(), cl::NullRange);
 		
 		// reduction to get sphere with highest inlier ratio
 		const unsigned GROUP_SIZE = 64;
@@ -331,7 +322,7 @@ void PointCloud::FitSphere(cl::CommandQueue& queue)
 
 		end = std::chrono::high_resolution_clock::now();
 		std::chrono::duration<double> elapsed = end - start;
-		std::cout << elapsed.count() * 1000 << " ms" << std::endl;
+		std::cout << elapsed.count() * 100000 << " ms" << std::endl;
 	}
 	catch (cl::Error& error)
 	{
