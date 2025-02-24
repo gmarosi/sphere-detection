@@ -2,7 +2,7 @@
 #include <fstream>
 #include <chrono>
 
-unsigned round_up_div(unsigned a, unsigned b) {
+inline unsigned round_up_div(unsigned a, unsigned b) {
 	return static_cast<int>(ceil((double)a / b));
 }
 
@@ -94,31 +94,11 @@ bool PointCloud::InitCl(cl::Context& context, const cl::vector<cl::Device>& devi
 {
 	try
 	{
-		// Sphere detection init
-		std::ifstream sphereFile("sphere_detect.cl");
-		std::string sphereCode(std::istreambuf_iterator<char>(sphereFile), (std::istreambuf_iterator<char>()));
-		cl::Program::Sources sphereSource(1, std::make_pair(sphereCode.c_str(), sphereCode.length() + 1));
-
 		clContext = &context;
-		clSphereProgram = cl::Program(*clContext, sphereSource);
+		posBuffer = cl::BufferGL(*clContext, CL_MEM_READ_WRITE, posVBO);
 
-		try {
-			clSphereProgram.build(devices);
-		}
-		catch (cl::Error &error) {
-			std::cout << clSphereProgram.getBuildInfo<CL_PROGRAM_BUILD_LOG>(devices[0]) << std::endl;
-			throw error;
-		}
+		sphereFitter.Init(context, devices);
 
-		sphereCalcKernel = cl::Kernel(clSphereProgram, "calcSphere");
-		sphereFitKernel  = cl::Kernel(clSphereProgram, "fitSphere");
-		reduceKernel	 = cl::Kernel(clSphereProgram, "reduce");
-		sphereFillKernel = cl::Kernel(clSphereProgram, "sphereFill");
-
-		posBuffer    = cl::BufferGL(*clContext, CL_MEM_READ_WRITE, posVBO);
-		indexBuffer  = cl::Buffer(*clContext, CL_MEM_WRITE_ONLY, ITER_NUM * sizeof(cl_int4));
-		sphereBuffer = cl::Buffer(*clContext, CL_MEM_READ_ONLY, ITER_NUM * sizeof(cl_float4));
-		inlierBuffer = cl::Buffer(*clContext, CL_MEM_READ_WRITE, ITER_NUM * sizeof(int));
 
 		// Cylinder detection init
 		std::ifstream cylinderFile("cylinder_detect.cl");
@@ -182,9 +162,9 @@ void PointCloud::Update()
 			pointsIntensity[i / CHANNELS] = rawData[i + 3];
 
 			// storing indices of candidate points
-			if (mode == SPHERE && glm::distance(glm::vec2(0, 0), glm::vec2(point.x, point.z)) < 6 && point.z < 0)
+			if (mode == SPHERE)
 			{
-				candidates.push_back(i / CHANNELS);
+				sphereFitter.EvalCandidate(point, i / CHANNELS);
 			}
 			else if (mode == CYLINDER && point.y < -1)
 			{
@@ -223,10 +203,21 @@ void PointCloud::Render(const glm::mat4& viewProj)
 
 void PointCloud::Fit(cl::CommandQueue& queue)
 {
+	if (!fit)
+		return;
+	fit = false;
+
 	switch (mode)
 	{
 	case SPHERE:
-		FitSphere(queue);
+		try
+		{
+			sphereFitter.Fit(queue, posBuffer);
+		}
+		catch (cl::Error& error)
+		{
+			exit(1);
+		}
 		break;
 	case CYLINDER:
 		FitCylinder(queue);
@@ -234,118 +225,8 @@ void PointCloud::Fit(cl::CommandQueue& queue)
 	}
 }
 
-void PointCloud::FitSphere(cl::CommandQueue& queue)
-{
-	if (!fit)
-		return;
-	fit = false;
-
-	/*
-	Idea: calculate eg. 1000 spheres w/ their centers and radii
-		- 4 random indexes 0..POINT_CLOUD_SIZE
-		- calc spheres in kernel
-	*/
-
-	std::chrono::time_point<std::chrono::high_resolution_clock> start, end;
-	start = std::chrono::high_resolution_clock::now();
-
-	std::vector<cl_int4> indices;
-	for (int i = 0; i < ITER_NUM; i++)
-	{
-		// choosing 4 random indices from candidate vector
-		int a, b, c, d;
-		a = rand() % candidates.size();
-		do {
-			b = rand() % candidates.size();
-		} while (b == a);
-		do {
-			c = rand() % candidates.size();
-		} while (c == a || c == b);
-		do {
-			d = rand() % candidates.size();
-		} while (d == a || d == b || d == c);
-		indices.push_back({ candidates[a], candidates[b], candidates[c], candidates[d] });
-		
-		/*
-		// points close in data are close in space => more likely part of same object
-		int a = rand() % (candidates.size() - 3);
-		indices.push_back({ candidates[a], candidates[a + 1], candidates[a + 2], candidates[a + 3] });
-		*/
-	}
-
-	try
-	{
-		// set inlier buffer to all zeroes
-		std::vector<int> zero(ITER_NUM, 0);
-		queue.enqueueWriteBuffer(inlierBuffer, CL_TRUE, 0, ITER_NUM * sizeof(int), zero.data());
-		queue.enqueueWriteBuffer(indexBuffer, CL_TRUE, 0, ITER_NUM * sizeof(cl_int4), indices.data());
-		queue.finish();
-
-		// acquire GL position buffer
-		cl::vector<cl::Memory> acq;
-		acq.push_back(posBuffer);
-		queue.enqueueAcquireGLObjects(&acq);
-
-		// calculate spheres
-		sphereCalcKernel.setArg(0, posBuffer);
-		sphereCalcKernel.setArg(1, indexBuffer);
-		sphereCalcKernel.setArg(2, sphereBuffer);
-
-		queue.enqueueNDRangeKernel(sphereCalcKernel, cl::NullRange, ITER_NUM, cl::NullRange);
-
-		// Debug print for spheres
-		/*
-		glm::vec4 sphere;
-		queue.enqueueReadBuffer(sphereBuffer, CL_TRUE, 0, sizeof(cl_float4), &sphere);
-		std::cout << sphere.x << "; " << sphere.y << "; " << sphere.z << "; r: " << sphere.w << std::endl;
-		*/
-
-		// evaluate sphere inlier ratio
-		sphereFitKernel.setArg(0, posBuffer);
-		sphereFitKernel.setArg(1, sphereBuffer);
-		sphereFitKernel.setArg(2, inlierBuffer);
-		sphereFitKernel.setArg(3, ITER_NUM);
-
-		queue.enqueueNDRangeKernel(sphereFitKernel, cl::NullRange, POINT_CLOUD_SIZE, cl::NullRange);
-		
-		// reduction to get sphere with highest inlier ratio
-		const unsigned GROUP_SIZE = 64;
-		reduceKernel.setArg(0, inlierBuffer);
-		reduceKernel.setArg(1, sphereBuffer);
-		reduceKernel.setArg(2, GROUP_SIZE * sizeof(float), nullptr);
-		reduceKernel.setArg(3, GROUP_SIZE * sizeof(int), nullptr);
-
-		for (unsigned rem_size = ITER_NUM; rem_size > 1; rem_size = round_up_div(rem_size, GROUP_SIZE))
-		{
-			int t1 = round_up_div(rem_size, GROUP_SIZE) * GROUP_SIZE;
-			queue.enqueueNDRangeKernel(reduceKernel, cl::NullRange, t1, GROUP_SIZE);
-		}
-		
-		// color points which are on the best sphere
-		sphereFillKernel.setArg(0, posBuffer);
-		sphereFillKernel.setArg(1, sphereBuffer);
-
-		queue.enqueueNDRangeKernel(sphereFillKernel, cl::NullRange, POINT_CLOUD_SIZE, cl::NullRange);
-
-		queue.enqueueReleaseGLObjects(&acq);
-
-		end = std::chrono::high_resolution_clock::now();
-		std::chrono::duration<double> elapsed = end - start;
-		std::cout << elapsed.count() * 1000 << " ms" << std::endl;
-	}
-	catch (cl::Error& error)
-	{
-		std::cout << "PointCloud::FitSphere : " << error.what() << std::endl;
-		exit(1);
-	}
-}
-
 void PointCloud::FitCylinder(cl::CommandQueue& queue)
 {
-	if (!fit)
-		return;
-	fit = false;
-
 	std::vector<cl_int3> indices;
 	for (int i = 0; i < ITER_NUM; i++)
 	{

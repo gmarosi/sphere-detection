@@ -1,30 +1,6 @@
 #pragma once
 
-// GLEW
-#include <GL/glew.h>
-
-// SDL, OpenGL
-#include <SDL.h>
-#include <SDL_opengl.h>
-
-// GLM
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtx/transform2.hpp>
-#include <glm/gtc/type_ptr.hpp>
-
-// CL
-#define __NO_STD_VECTOR
-#define __CL_ENABLE_EXCEPTIONS
-
-#include <CL/cl.hpp>
-#include <CL/cl_gl.h>
-#include <oclutils.hpp>
-
-#include "ProgramObject.h"
-#include "BufferObject.h"
-#include "VertexArrayObject.h"
-
+#include "SphereFitter.h"
 #include "SHMManager.h"
 
 enum FitMode {SPHERE, CYLINDER};
@@ -45,9 +21,8 @@ public:
 	void ChangeMode();
 
 private:
-	const int POINT_CLOUD_SIZE = 14976;
-	const int CHANNELS = 4;
 	const int ITER_NUM = 4096;
+	const int CHANNELS = 4;
 	const int CYLINDER_ITER_NUM = 1024;
 
 	const float pointRenderSize = 5.f;
@@ -72,17 +47,7 @@ private:
 	cl::Context* clContext;
 	cl::BufferGL posBuffer;
 
-	// Sphere detection
-	cl::Program clSphereProgram;
-
-	cl::Kernel sphereCalcKernel;
-	cl::Kernel sphereFitKernel;
-	cl::Kernel reduceKernel;
-	cl::Kernel sphereFillKernel;
-
-	cl::Buffer indexBuffer;
-	cl::Buffer sphereBuffer;
-	cl::Buffer inlierBuffer;
+	SphereFitter sphereFitter;
 
 	// Cylinder detection
 	cl::Program clCylinderProgram;
@@ -107,6 +72,5 @@ private:
 	cl::Buffer cylinderDataBuffer;
 	cl::Buffer cylinderInliersBuffer;
 
-	void FitSphere(cl::CommandQueue& queue);
 	void FitCylinder(cl::CommandQueue& queue);
 };
