@@ -4,8 +4,6 @@
 #include "CylinderFitter.h"
 #include "SHMManager.h"
 
-enum FitMode {SPHERE, CYLINDER};
-
 class PointCloud
 {
 public:
@@ -31,8 +29,6 @@ private:
 	SHMManager *mapMem;
 	bool		fit = false;
 
-	FitMode mode;
-
 	std::vector<glm::vec4>	pointsPos;
 	std::vector<float>		pointsIntensity;
 	std::vector<int>		candidates;
@@ -47,6 +43,6 @@ private:
 	// CL
 	cl::BufferGL posBuffer;
 
-	SphereFitter sphereFitter;
-	CylinderFitter cylinderFitter;
+	std::vector<IFitter*>::iterator currentFitter;
+	std::vector<IFitter*> fitters;
 };

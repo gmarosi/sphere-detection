@@ -9,19 +9,13 @@ inline unsigned round_up_div(unsigned a, unsigned b) {
 PointCloud::PointCloud()
 {
 	mapMem = nullptr;
-	mode = SPHERE;
 }
 
 void PointCloud::ChangeMode()
 {
-	switch (mode)
+	if (++currentFitter == fitters.end())
 	{
-	case SPHERE: 
-		mode = CYLINDER;
-		break;
-	case CYLINDER:
-		mode = SPHERE;
-		break;
+		currentFitter = fitters.begin();
 	}
 }
 
@@ -96,8 +90,15 @@ bool PointCloud::InitCl(cl::Context& context, const cl::vector<cl::Device>& devi
 	{
 		posBuffer = cl::BufferGL(context, CL_MEM_READ_WRITE, posVBO);
 
-		sphereFitter.Init(context, devices);
-		cylinderFitter.Init(context, devices);
+		auto sphereFitter = new SphereFitter();
+		sphereFitter->Init(context, devices);
+		fitters.push_back(sphereFitter);
+
+		auto cylinderFitter = new CylinderFitter();
+		cylinderFitter->Init(context, devices);
+		fitters.push_back(cylinderFitter);
+
+		currentFitter = fitters.begin();
 	}
 	catch (cl::Error& error)
 	{
@@ -125,14 +126,7 @@ void PointCloud::Update()
 			pointsIntensity[i / CHANNELS] = rawData[i + 3];
 
 			// storing indices of candidate points
-			if (mode == SPHERE)
-			{
-				sphereFitter.EvalCandidate(point, i / CHANNELS);
-			}
-			else if (mode == CYLINDER)
-			{
-				cylinderFitter.EvalCandidate(point, i / CHANNELS);
-			}
+			(*currentFitter)->EvalCandidate(point, i / CHANNELS);
 		}
 
 		glBindBuffer(GL_ARRAY_BUFFER, posVBO);
@@ -172,15 +166,7 @@ void PointCloud::Fit(cl::CommandQueue& queue)
 
 	try
 	{
-		switch (mode)
-		{
-		case SPHERE:
-			sphereFitter.Fit(queue, posBuffer);
-			break;
-		case CYLINDER:
-			cylinderFitter.Fit(queue, posBuffer);
-			break;
-		}
+		(*currentFitter)->Fit(queue, posBuffer);
 	}
 	catch (cl::Error&)
 	{
