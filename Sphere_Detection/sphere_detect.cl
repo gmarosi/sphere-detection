@@ -96,7 +96,7 @@ __kernel void fitSphere(
 	for(int i = 0; i < ITER_NUM; i++)
 	{
 		float4 sphere = spheres[i];
-		float dist = distance(data[i].xyz, sphere.xyz);
+		float dist = distance(point.xyz, sphere.xyz);
 		if(fabs(sphere.w - dist) < EPSILON)
 		{
 			atomic_inc(&result[i]);
