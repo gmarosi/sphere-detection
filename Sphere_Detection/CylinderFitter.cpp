@@ -187,6 +187,7 @@ void CylinderFitter::Fit(cl::CommandQueue& queue, cl::BufferGL& posBuffer)
 		queue.enqueueNDRangeKernel(cylinderColorKernel, cl::NullRange, POINT_CLOUD_SIZE, cl::NullRange);
 
 		queue.enqueueReleaseGLObjects(&acq);
+		candidates.clear();
 	}
 	catch (cl::Error& error)
 	{
