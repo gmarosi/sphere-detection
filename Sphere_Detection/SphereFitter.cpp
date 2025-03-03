@@ -32,13 +32,16 @@ void SphereFitter::Init(cl::Context& context, const cl::vector<cl::Device>& devi
 	indexBuffer  = cl::Buffer(context, CL_MEM_WRITE_ONLY, ITER_NUM * sizeof(cl_int4));
 	sphereBuffer = cl::Buffer(context, CL_MEM_READ_ONLY, ITER_NUM * sizeof(cl_float4));
 	inlierBuffer = cl::Buffer(context, CL_MEM_READ_WRITE, ITER_NUM * sizeof(int));
+	// allocate some memory for unknown number of candidates
+	candidateBuffer = cl::Buffer(context, CL_MEM_READ_ONLY, ITER_NUM * sizeof(cl_float4));
 }
 
 void SphereFitter::EvalCandidate(const glm::vec4& point, const int idx)
 {
-	if (glm::distance(glm::vec2(0, 0), glm::vec2(point.x, point.z)) < 6 && point.z < 0)
+	if (glm::distance(glm::vec2(0, 0), glm::vec2(point.x, point.z)) < 4.5 && point.z < 0.1)
 	{
-		candidates.push_back(idx);
+		// constructing cl_float4 from glm::vec4 just to make sure
+		candidates.push_back({point.x, point.y, point.z, point.w});
 	}
 }
 
@@ -59,7 +62,7 @@ void SphereFitter::Fit(cl::CommandQueue& queue, cl::BufferGL& posBuffer)
 		do {
 			d = rand() % candidates.size();
 		} while (d == a || d == b || d == c);
-		indices.push_back({ candidates[a], candidates[b], candidates[c], candidates[d] });
+		indices.push_back({a, b, c, d});
 	}
 
 	try
@@ -67,28 +70,28 @@ void SphereFitter::Fit(cl::CommandQueue& queue, cl::BufferGL& posBuffer)
 		// set inlier buffer to all zeroes
 		std::vector<int> zero(ITER_NUM, 0);
 		queue.enqueueWriteBuffer(inlierBuffer, CL_TRUE, 0, ITER_NUM * sizeof(int), zero.data());
+
+		// write selected indices to GPU
 		queue.enqueueWriteBuffer(indexBuffer, CL_TRUE, 0, ITER_NUM * sizeof(cl_int4), indices.data());
+
+		// write candidate points to GPU
+		queue.enqueueWriteBuffer(candidateBuffer, CL_TRUE, 0, candidates.size() * sizeof(cl_float4), candidates.data());
 		queue.finish();
 
-		// acquire GL position buffer
-		cl::vector<cl::Memory> acq;
-		acq.push_back(posBuffer);
-		queue.enqueueAcquireGLObjects(&acq);
-
 		// calculate spheres
-		calcKernel.setArg(0, posBuffer);
+		calcKernel.setArg(0, candidateBuffer);
 		calcKernel.setArg(1, indexBuffer);
 		calcKernel.setArg(2, sphereBuffer);
 
 		queue.enqueueNDRangeKernel(calcKernel, cl::NullRange, ITER_NUM, cl::NullRange);
 
 		// evaluate sphere inlier ratio
-		fitKernel.setArg(0, posBuffer);
+		fitKernel.setArg(0, candidateBuffer);
 		fitKernel.setArg(1, sphereBuffer);
 		fitKernel.setArg(2, inlierBuffer);
 		fitKernel.setArg(3, ITER_NUM);
 
-		queue.enqueueNDRangeKernel(fitKernel, cl::NullRange, POINT_CLOUD_SIZE, cl::NullRange);
+		queue.enqueueNDRangeKernel(fitKernel, cl::NullRange, candidates.size(), cl::NullRange);
 
 		// reduction to get sphere with highest inlier ratio
 		const unsigned GROUP_SIZE = 64;
@@ -102,6 +105,11 @@ void SphereFitter::Fit(cl::CommandQueue& queue, cl::BufferGL& posBuffer)
 			int t1 = round_up_div(rem_size, GROUP_SIZE) * GROUP_SIZE;
 			queue.enqueueNDRangeKernel(reduceKernel, cl::NullRange, t1, GROUP_SIZE);
 		}
+
+		// acquire GL position buffer
+		cl::vector<cl::Memory> acq;
+		acq.push_back(posBuffer);
+		queue.enqueueAcquireGLObjects(&acq);
 
 		// color points which are on the best sphere
 		fillKernel.setArg(0, posBuffer);
