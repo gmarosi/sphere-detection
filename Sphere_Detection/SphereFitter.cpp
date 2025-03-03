@@ -33,12 +33,13 @@ void SphereFitter::Init(cl::Context& context, const cl::vector<cl::Device>& devi
 	sphereBuffer = cl::Buffer(context, CL_MEM_READ_ONLY, ITER_NUM * sizeof(cl_float4));
 	inlierBuffer = cl::Buffer(context, CL_MEM_READ_WRITE, ITER_NUM * sizeof(int));
 	// allocate some memory for unknown number of candidates
-	candidateBuffer = cl::Buffer(context, CL_MEM_READ_ONLY, ITER_NUM * sizeof(cl_float4));
+	candidateBuffer = cl::Buffer(context, CL_MEM_READ_ONLY, 4096 * sizeof(cl_float4));
 }
 
 void SphereFitter::EvalCandidate(const glm::vec4& point, const int idx)
 {
-	if (glm::distance(glm::vec2(0, 0), glm::vec2(point.x, point.z)) < 4.5 && point.z < 0.1)
+	float dist = glm::distance(glm::vec2(0, 0), glm::vec2(point.x, point.z));
+	if (dist < 3.2 && dist > 1.8 && point.z < 0)
 	{
 		// constructing cl_float4 from glm::vec4 just to make sure
 		candidates.push_back({point.x, point.y, point.z, point.w});
