@@ -33,13 +33,13 @@ void SphereFitter::Init(cl::Context& context, const cl::vector<cl::Device>& devi
 	sphereBuffer = cl::Buffer(context, CL_MEM_READ_ONLY, ITER_NUM * sizeof(cl_float4));
 	inlierBuffer = cl::Buffer(context, CL_MEM_READ_WRITE, ITER_NUM * sizeof(int));
 	// allocate some memory for unknown number of candidates
-	candidateBuffer = cl::Buffer(context, CL_MEM_READ_ONLY, 4096 * sizeof(cl_float4));
+	candidateBuffer = cl::Buffer(context, CL_MEM_READ_ONLY, CAND_SIZE * sizeof(cl_float4));
 }
 
 void SphereFitter::EvalCandidate(const glm::vec4& point, const int idx)
 {
 	float dist = glm::distance(glm::vec2(0, 0), glm::vec2(point.x, point.z));
-	if (dist < 3.2 && dist > 1.8 && point.z < 0)
+	if (candidates.size() < CAND_SIZE && dist < 3.2 && dist > 1.8 && point.z < 0)
 	{
 		// constructing cl_float4 from glm::vec4 just to make sure
 		candidates.push_back({point.x, point.y, point.z, point.w});
@@ -48,6 +48,12 @@ void SphereFitter::EvalCandidate(const glm::vec4& point, const int idx)
 
 void SphereFitter::Fit(cl::CommandQueue& queue, cl::BufferGL& posBuffer)
 {
+	if (candidates.empty())
+	{
+		std::cout << "SphereFitter::Fit(): no candidates, skipping sphere fit\n";
+		return;
+	}
+
 	std::vector<cl_int4> indices;
 	for (int i = 0; i < ITER_NUM; i++)
 	{
@@ -65,6 +71,7 @@ void SphereFitter::Fit(cl::CommandQueue& queue, cl::BufferGL& posBuffer)
 		} while (d == a || d == b || d == c);
 		indices.push_back({a, b, c, d});
 	}
+	candidates.clear();
 
 	try
 	{
@@ -119,7 +126,6 @@ void SphereFitter::Fit(cl::CommandQueue& queue, cl::BufferGL& posBuffer)
 		queue.enqueueNDRangeKernel(fillKernel, cl::NullRange, POINT_CLOUD_SIZE, cl::NullRange);
 
 		queue.enqueueReleaseGLObjects(&acq);
-		candidates.clear();
 	}
 	catch (cl::Error& error)
 	{
