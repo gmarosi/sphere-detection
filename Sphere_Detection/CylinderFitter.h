@@ -12,8 +12,8 @@ public:
 	void EvalCandidate(const glm::vec4&, const int) override;
 
 private:
-	const int ITER_NUM = 4096;
-	const int CYLINDER_ITER_NUM = 1024;
+	const int ITER_NUM = 2048;
+	const int CYLINDER_ITER_NUM = 4096 * 16;
 
 	cl::Program program;
 	cl::Context* context;

@@ -125,20 +125,26 @@ void CylinderFitter::Fit(cl::CommandQueue& queue, cl::BufferGL& posBuffer)
 		// create new buffer with points that are part of the plane
 		std::vector<glm::vec4> pcl;
 		std::vector<cl_float3> planePoints;
+		std::vector<cl_float3> closePoints;
 		pcl.resize(POINT_CLOUD_SIZE);
 		queue.enqueueReadBuffer(posBuffer, CL_TRUE, 0, POINT_CLOUD_SIZE * sizeof(glm::vec4), pcl.data());
 
+		// select close points from the plane
+		const float close = 7;
 		for (int i = 0; i < POINT_CLOUD_SIZE; i++)
 		{
-			if (pcl[i].w != 0)
+			if (glm::distance(glm::vec2(0, 0), glm::vec2(pcl[i].x, pcl[i].z)) < close && pcl[i].y < 1)
 			{
-				// store both the coords and the original index
-				planePoints.push_back({ pcl[i].x, pcl[i].y, pcl[i].z });
+				if (pcl[i].w != 0)
+					planePoints.push_back({ pcl[i].x, pcl[i].y, pcl[i].z });
+				else
+					closePoints.push_back({ pcl[i].x, pcl[i].y, pcl[i].z });
 			}
 		}
 		cylinderPointsBuffer = cl::Buffer(*context, CL_MEM_READ_WRITE, planePoints.size() * sizeof(cl_float3));
+		cl::Buffer closeBuffer(*context, CL_MEM_READ_ONLY, closePoints.size() * sizeof(cl_float3));
 
-		// get random indices for RANSAC (0 .. planePoints.size())
+		// get random indices for RANSAC (0 .. candidates.size())
 		std::vector<cl_int3> indices;
 		for (int i = 0; i < CYLINDER_ITER_NUM; i++)
 		{
@@ -153,8 +159,10 @@ void CylinderFitter::Fit(cl::CommandQueue& queue, cl::BufferGL& posBuffer)
 			indices.push_back({ a, b, c });
 		}
 
-		queue.enqueueWriteBuffer(cylinderRandBuffer, CL_FALSE, 0, CYLINDER_ITER_NUM * sizeof(cl_int3), indices.data());
+		queue.enqueueWriteBuffer(cylinderRandBuffer, CL_TRUE, 0, CYLINDER_ITER_NUM * sizeof(cl_int3), indices.data());
+		queue.enqueueWriteBuffer(closeBuffer, CL_TRUE, 0, closePoints.size() * sizeof(cl_float3), closePoints.data());
 		queue.enqueueWriteBuffer(cylinderPointsBuffer, CL_TRUE, 0, planePoints.size() * sizeof(glm::vec3), planePoints.data());
+		queue.finish();
 
 		cylinderCalcKernel.setArg(0, cylinderRandBuffer);
 		cylinderCalcKernel.setArg(1, cylinderPointsBuffer);
@@ -163,12 +171,13 @@ void CylinderFitter::Fit(cl::CommandQueue& queue, cl::BufferGL& posBuffer)
 
 		queue.enqueueNDRangeKernel(cylinderCalcKernel, cl::NullRange, CYLINDER_ITER_NUM, cl::NullRange);
 
-		cylinderFitKernel.setArg(0, posBuffer);
+		int size = closePoints.size();
+		cylinderFitKernel.setArg(0, closeBuffer);
 		cylinderFitKernel.setArg(1, cylinderDataBuffer);
 		cylinderFitKernel.setArg(2, cylinderInliersBuffer);
-		cylinderFitKernel.setArg(3, CYLINDER_ITER_NUM);
+		cylinderFitKernel.setArg(3, size);
 
-		queue.enqueueNDRangeKernel(cylinderFitKernel, cl::NullRange, POINT_CLOUD_SIZE, cl::NullRange);
+		queue.enqueueNDRangeKernel(cylinderFitKernel, cl::NullRange, CYLINDER_ITER_NUM, cl::NullRange);
 
 		cylinderReduceKernel.setArg(0, cylinderInliersBuffer);
 		cylinderReduceKernel.setArg(1, cylinderDataBuffer);

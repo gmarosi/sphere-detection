@@ -1,5 +1,6 @@
 const int CLOUD_SIZE = 14976;
-const float EPSILON = 0.05;
+const float EPSILON = 0.12; // primary epsilon value
+const float EPS_2 = 0.07; // secondary epsilon value
 
 __kernel void calcPlane(
 	__global float4* data,
@@ -140,13 +141,13 @@ __kernel void fitCylinder(
 	int ITER_NUM)
 {
 	int g_id = get_global_id(0);
-	float2 point = data[g_id].xz;
+	float3 cylinder = cylinders[g_id];
 
 	for(int i = 0; i < ITER_NUM; i++)
 	{
-		float3 cylinder = cylinders[i];
+		float2 point = data[i].xz;
 
-		if(fabs(distance(point, cylinder.xy) - cylinder.z) < EPSILON)
+		if(fabs(distance(point, cylinder.xy) - cylinder.z) < EPS_2)
 		{
 			atomic_inc(&inliers[i]);
 		}
@@ -194,5 +195,5 @@ __kernel void colorCylinder(
 
 	float3 cylinder = cylinders[0];
 	
-	data[g_id].w += fabs(distance(point, cylinder.xy) - cylinder.z) < EPSILON ? 0.75 : 0;
+	data[g_id].w += fabs(distance(point, cylinder.xy) - cylinder.z) < EPS_2 ? 0.75 : 0;
 }
