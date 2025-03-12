@@ -13,6 +13,8 @@ public:
 
 private:
 	const int ITER_NUM = 4096;
+	const int CAND_SIZE = 4096;
+	std::vector<cl_float4> candidates;
 
 	cl::Program  program;
 
@@ -24,4 +26,5 @@ private:
 	cl::Buffer indexBuffer;
 	cl::Buffer sphereBuffer;
 	cl::Buffer inlierBuffer;
+	cl::Buffer candidateBuffer;
 };

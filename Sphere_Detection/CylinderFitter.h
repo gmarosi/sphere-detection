@@ -15,6 +15,8 @@ private:
 	const int ITER_NUM = 2048;
 	const int CYLINDER_ITER_NUM = 4096 * 16;
 
+	std::vector<int> candidates;
+
 	cl::Program program;
 	cl::Context* context;
 
