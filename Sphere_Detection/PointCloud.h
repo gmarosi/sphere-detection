@@ -20,9 +20,7 @@ public:
 	void ChangeMode();
 
 private:
-	const int ITER_NUM = 4096;
 	const int CHANNELS = 4;
-	const int CYLINDER_ITER_NUM = 1024;
 
 	const float pointRenderSize = 5.f;
 
@@ -31,7 +29,6 @@ private:
 
 	std::vector<glm::vec4>	pointsPos;
 	std::vector<float>		pointsIntensity;
-	std::vector<int>		candidates;
 
 	// GL
 	ProgramObject program;
