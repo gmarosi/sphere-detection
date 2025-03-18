@@ -42,7 +42,7 @@ void CylinderFitter::Init(cl::Context& context, const cl::vector<cl::Device>& de
 	cylinderColorKernel = cl::Kernel(program, "colorCylinder");
 
 	cylinderRandBuffer = cl::Buffer(context, CL_MEM_READ_ONLY, CYLINDER_ITER_NUM * sizeof(cl_int3));
-	cylinderDataBuffer = cl::Buffer(context, CL_MEM_READ_WRITE, CYLINDER_ITER_NUM * sizeof(cl_int3));
+	cylinderDataBuffer = cl::Buffer(context, CL_MEM_READ_WRITE, CYLINDER_ITER_NUM * sizeof(cl_float4));
 	cylinderInliersBuffer = cl::Buffer(context, CL_MEM_READ_WRITE, CYLINDER_ITER_NUM * sizeof(int));
 }
 
@@ -171,13 +171,13 @@ void CylinderFitter::Fit(cl::CommandQueue& queue, cl::BufferGL& posBuffer)
 
 		queue.enqueueNDRangeKernel(cylinderCalcKernel, cl::NullRange, CYLINDER_ITER_NUM, cl::NullRange);
 
-		int size = closePoints.size();
+		size_t size = closePoints.size();
 		cylinderFitKernel.setArg(0, closeBuffer);
-		cylinderFitKernel.setArg(1, cylinderDataBuffer);
-		cylinderFitKernel.setArg(2, cylinderInliersBuffer);
-		cylinderFitKernel.setArg(3, size);
+		cylinderFitKernel.setArg(1, planeNormalsBuffer);
+		cylinderFitKernel.setArg(2, cylinderDataBuffer);
+		cylinderFitKernel.setArg(3, cylinderInliersBuffer);
 
-		queue.enqueueNDRangeKernel(cylinderFitKernel, cl::NullRange, CYLINDER_ITER_NUM, cl::NullRange);
+		queue.enqueueNDRangeKernel(cylinderFitKernel, cl::NullRange, cl::NDRange(CYLINDER_ITER_NUM, size), cl::NullRange);
 
 		cylinderReduceKernel.setArg(0, cylinderInliersBuffer);
 		cylinderReduceKernel.setArg(1, cylinderDataBuffer);
@@ -191,7 +191,8 @@ void CylinderFitter::Fit(cl::CommandQueue& queue, cl::BufferGL& posBuffer)
 		}
 
 		cylinderColorKernel.setArg(0, posBuffer);
-		cylinderColorKernel.setArg(1, cylinderDataBuffer);
+		cylinderColorKernel.setArg(1, planeNormalsBuffer);
+		cylinderColorKernel.setArg(2, cylinderDataBuffer);
 
 		queue.enqueueNDRangeKernel(cylinderColorKernel, cl::NullRange, POINT_CLOUD_SIZE, cl::NullRange);
 
