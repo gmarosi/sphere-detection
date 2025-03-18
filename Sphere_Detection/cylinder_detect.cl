@@ -105,12 +105,11 @@ __kernel void fillPlane(
 }
 
 // fit cylinder by finding a circle on the ground plane
-// center: intersection of the perpendicular bisectors of 2 chords
 __kernel void calcCylinder(
 	__global int3*   rand,
 	__global float3* data,
 	__global float3* normals,
-	__global float3* cylinders)
+	__global float4* cylinders)
 {
 	int g_id = get_global_id(0);
 	float3 p1 = data[rand[g_id].x];
@@ -118,45 +117,50 @@ __kernel void calcCylinder(
 	float3 p3 = data[rand[g_id].z];
 	float3 n  = normals[0];
 
-	// midpoints of the chords (in the plane)
-	float2 k1 = (float2)((p1.x + p2.x)/2.0, (p1.z + p2.z)/2.0);
-	float2 k2 = (float2)((p1.x + p3.x)/2.0, (p1.z + p3.z)/2.0);
+	// orthogonal unit vectors spanning the plane
+	float3 u = normalize(p2 - p1);
+	float3 v = cross(n, u);
 
-	// vectors perpendicular to the chords (in the plane)
-	float2 v1 = cross(p2 - p1, n).xz;
-	float2 v2 = cross(p3 - p1, n).xz;
+	// projecting onto plane
+	float bx = dot(p2 - p1, u) * 0.5;
+	float cx = dot(p3 - p1, u);
+	float cy = dot(p3 - p1, v);
 
-	// solve: alpha * v1 + k1 = beta * v2 + k2 = c
-	float alpha = ( v2.x * (k1.y - k2.y) + v2.y * (k2.x - k1.x) ) / ( v1.x * v2.y - v1.y * v2.x );
-	float2 c = alpha * v1 + k1;
-	float r = distance(c, p1.xz);
+	float h = ((cx - bx) * (cx - bx) + cy * cy - bx * bx) / (2 * cy);
 
-	cylinders[g_id] = (float3)(c, r);
+	// centerpoint of circle
+	float3 k = p1 + bx * u + h * v;
+	float  r = distance(k, p1);
+
+	cylinders[g_id] = (float4)(k, r);
 }
 
 __kernel void fitCylinder(
 	__global float4* data,
-	__global float3* cylinders,
-	__global int*	 inliers,
-	int ITER_NUM)
+	__global float3* normals,
+	__global float4* cylinders,
+	__global int*	 inliers)
 {
-	int g_id = get_global_id(0);
-	float3 cylinder = cylinders[g_id];
+	int g_id0 = get_global_id(0);
+	int g_id1 = get_global_id(1);
+	float4 cylinder = cylinders[g_id0];
+	float3 p = data[g_id1].xyz;
+	float3 n = normals[0];
 
-	for(int i = 0; i < ITER_NUM; i++)
+	// project point onto the plane of the circle,
+	float dist = dot(p - cylinder.xyz, n);
+	float3 p_proj = p - dist * n;
+
+	// check distance of p_proj and cylinder centerline
+	if(fabs(distance(p_proj, cylinder.xyz) - cylinder.w) < EPS_2)
 	{
-		float2 point = data[i].xz;
-
-		if(fabs(distance(point, cylinder.xy) - cylinder.z) < EPS_2)
-		{
-			atomic_inc(&inliers[i]);
-		}
+		atomic_inc(&inliers[g_id0]);
 	}
 }
 
 __kernel void reduceCylinder(
 	__global int*    inliers,
-	__global float3* cylinders,
+	__global float4* cylinders,
 	__local  int*    scratch,   // local for inlier values
 	__local  int*	 idx)	    // local for plane global idx
 {
@@ -188,12 +192,17 @@ __kernel void reduceCylinder(
 
 __kernel void colorCylinder(
 	__global float4* data,
-	__global float3* cylinders)
+	__global float3* normals,
+	__global float4* cylinders)
 {
 	int g_id = get_global_id(0);
-	float2 point = data[g_id].xz;
+	float3 p = data[g_id].xyz;
+	float3 n = normals[0];
+	float4 cylinder = cylinders[0];
 
-	float3 cylinder = cylinders[0];
+	// project point onto the plane of the circle,
+	float dist = dot(p - cylinder.xyz, n);
+	float3 p_proj = p - dist * n;
 	
-	data[g_id].w += fabs(distance(point, cylinder.xy) - cylinder.z) < EPS_2 ? 0.75 : 0;
+	data[g_id].w += fabs(distance(p_proj, cylinder.xyz) - cylinder.w) < EPS_2 ? 0.75 : 0;
 }
