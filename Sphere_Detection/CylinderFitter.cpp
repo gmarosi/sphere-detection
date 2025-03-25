@@ -159,6 +159,10 @@ void CylinderFitter::Fit(cl::CommandQueue& queue, cl::BufferGL& posBuffer)
 			indices.push_back({ a, b, c });
 		}
 
+		// zeroing out cylinder inlier buffer
+		std::vector<int> zero_c(CYLINDER_ITER_NUM, 0);
+		queue.enqueueWriteBuffer(cylinderInliersBuffer, CL_TRUE, 0, CYLINDER_ITER_NUM * sizeof(int), zero_c.data());
+
 		queue.enqueueWriteBuffer(cylinderRandBuffer, CL_TRUE, 0, CYLINDER_ITER_NUM * sizeof(cl_int3), indices.data());
 		queue.enqueueWriteBuffer(closeBuffer, CL_TRUE, 0, closePoints.size() * sizeof(cl_float3), closePoints.data());
 		queue.enqueueWriteBuffer(cylinderPointsBuffer, CL_TRUE, 0, planePoints.size() * sizeof(glm::vec3), planePoints.data());
