@@ -29,7 +29,7 @@ void SphereFitter::Init(cl::Context& context, const cl::vector<cl::Device>& devi
 	reduceKernel = cl::Kernel(program, "reduce");
 	fillKernel   = cl::Kernel(program, "sphereFill");
 
-	indexBuffer  = cl::Buffer(context, CL_MEM_WRITE_ONLY, ITER_NUM * sizeof(cl_int4));
+	indexBuffer  = cl::Buffer(context, CL_MEM_WRITE_ONLY, ITER_NUM * FIT_NUM * sizeof(int));
 	sphereBuffer = cl::Buffer(context, CL_MEM_READ_ONLY, ITER_NUM * sizeof(cl_float4));
 	inlierBuffer = cl::Buffer(context, CL_MEM_READ_WRITE, ITER_NUM * sizeof(int));
 	// allocate some memory for unknown number of candidates
@@ -54,7 +54,7 @@ void SphereFitter::Fit(cl::CommandQueue& queue, cl::BufferGL& posBuffer)
 		return;
 	}
 
-	std::vector<cl_int4> indices;
+	std::vector<int> indices;
 	for (int i = 0; i < ITER_NUM; i++)
 	{
 		// choosing 4 random indices from candidate vector
@@ -69,9 +69,11 @@ void SphereFitter::Fit(cl::CommandQueue& queue, cl::BufferGL& posBuffer)
 		do {
 			d = rand() % candidates.size();
 		} while (d == a || d == b || d == c);
-		indices.push_back({a, b, c, d});
+		indices.push_back(a);
+		indices.push_back(b);
+		indices.push_back(c);
+		indices.push_back(d);
 	}
-	candidates.clear();
 
 	try
 	{
@@ -80,7 +82,7 @@ void SphereFitter::Fit(cl::CommandQueue& queue, cl::BufferGL& posBuffer)
 		queue.enqueueWriteBuffer(inlierBuffer, CL_TRUE, 0, ITER_NUM * sizeof(int), zero.data());
 
 		// write selected indices to GPU
-		queue.enqueueWriteBuffer(indexBuffer, CL_TRUE, 0, ITER_NUM * sizeof(cl_int4), indices.data());
+		queue.enqueueWriteBuffer(indexBuffer, CL_TRUE, 0, ITER_NUM * FIT_NUM * sizeof(int), indices.data());
 
 		// write candidate points to GPU
 		queue.enqueueWriteBuffer(candidateBuffer, CL_TRUE, 0, candidates.size() * sizeof(cl_float4), candidates.data());
@@ -126,6 +128,7 @@ void SphereFitter::Fit(cl::CommandQueue& queue, cl::BufferGL& posBuffer)
 		queue.enqueueNDRangeKernel(fillKernel, cl::NullRange, POINT_CLOUD_SIZE, cl::NullRange);
 
 		queue.enqueueReleaseGLObjects(&acq);
+		candidates.clear();
 	}
 	catch (cl::Error& error)
 	{
