@@ -92,16 +92,17 @@ namespace SphereDetectionTest
 		return static_cast<int>(ceil((double)a / b));
 	}
 
-	TEST_CLASS(SphereDetectionTest)
+	TEST_CLASS(OCLKernelTest)
 	{
 	private:
 		cl::vector<cl::Device> devices;
 		cl::Context context;
 		cl::CommandQueue queue;
 		cl::Program program;
+		cl::Program program_c;
 
 	public:
-		TEST_METHOD_INITIALIZE(SphereKernelTestInit)
+		TEST_METHOD_INITIALIZE(OCLKernelTestInit)
 		{
 			cl::vector<cl::Platform> platforms;
 			cl::Platform::get(&platforms);
@@ -129,7 +130,10 @@ namespace SphereDetectionTest
 			}
 
 			if (!create_context_success)
-				throw cl::Error(CL_INVALID_CONTEXT, "Failed to create CL/GL shared context");
+			{
+				std::cout << "Failed to create CL context" << std::endl;
+				return;
+			}
 
 			devices = context.getInfo<CL_CONTEXT_DEVICES>();
 			queue = cl::CommandQueue(context, devices[0]);
@@ -148,6 +152,23 @@ namespace SphereDetectionTest
 			catch (cl::Error& error)
 			{
 				std::cout << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(devices[0]) << std::endl;
+				throw error;
+			}
+
+			std::ifstream cylinderFile("../../../Sphere_Detection/cylinder_detect.cl");
+			std::string cylinderCode(std::istreambuf_iterator<char>(cylinderFile), (std::istreambuf_iterator<char>()));
+			cylinderFile.close();
+
+			cl::Program::Sources cylinderSource(1, std::make_pair(cylinderCode.c_str(), cylinderCode.length() + 1));
+			program_c = cl::Program(context, cylinderSource);
+
+			try
+			{
+				program_c.build(devices);
+			}
+			catch (cl::Error& error)
+			{
+				std::cout << program_c.getBuildInfo<CL_PROGRAM_BUILD_LOG>(devices[0]) << std::endl;
 				throw error;
 			}
 		}
@@ -213,6 +234,7 @@ namespace SphereDetectionTest
 			catch (cl::Error& error)
 			{
 				std::cout << error.what() << "\n"
+					<< "spherecalc\n"
 					<< getErrorString(error.err()) << std::endl;
 				return;
 			}
@@ -258,13 +280,129 @@ namespace SphereDetectionTest
 
 				std::vector<cl_float4> sph_res;
 				sph_res.resize(size);
-				queue.enqueueReadBuffer(inlierBuffer, CL_TRUE, 0, size * sizeof(cl_float4), sph_res.data());
+				queue.enqueueReadBuffer(sphereBuffer, CL_TRUE, 0, size * sizeof(cl_float4), sph_res.data());
 
 				for (int i = 0; i < size; i++)
 				{
-					Assert::IsTrue(inliers[0] >= inliers[i]);
+					Assert::IsTrue(inl_res[0] >= inl_res[i]);
 					Assert::AreEqual((float)(inl_res[i]), sph_res[i].v4.m128_f32[0], 0.1f);
 				}
+			}
+			catch (cl::Error& error)
+			{
+				std::cout << error.what() << "\n"
+					<< getErrorString(error.err()) << std::endl;
+				return;
+			}
+		}
+
+		TEST_METHOD(PlaneCalcTest)
+		{
+			std::vector<cl_float4> points = {
+				{0,0,0,0}, {1,0,0,0}, {0,0,1,0},
+				{0,1,0,0}, {0,1,1,0}, {1,0,0,0},
+				{10,3,4.5,0}, {0.32,8,1.3,0}, {3,0.17,11,0}
+			};
+
+			std::vector<cl_int3> idx;
+			for (int i = 0; i < points.size(); i += 3)
+			{
+				idx.push_back({ i, i + 1, i + 2 });
+			}
+
+			try
+			{
+				cl::Kernel kernel(program_c, "calcPlane");
+				cl::Buffer inputBuffer(context, CL_MEM_READ_ONLY, points.size() * sizeof(cl_float4));
+				cl::Buffer idxBuffer(context, CL_MEM_READ_ONLY, idx.size() * sizeof(cl_int3));
+				cl::Buffer pointsBuffer(context, CL_MEM_WRITE_ONLY, idx.size() * sizeof(cl_float3));
+				cl::Buffer normalsBuffer(context, CL_MEM_WRITE_ONLY, idx.size() * sizeof(cl_float3));
+
+				queue.enqueueWriteBuffer(inputBuffer, CL_TRUE, 0, points.size() * sizeof(cl_float4), points.data());
+				queue.enqueueWriteBuffer(idxBuffer, CL_TRUE, 0, idx.size() * sizeof(cl_int3), idx.data());
+
+				kernel.setArg(0, inputBuffer);
+				kernel.setArg(1, idxBuffer);
+				kernel.setArg(2, pointsBuffer);
+				kernel.setArg(3, normalsBuffer);
+
+				queue.enqueueNDRangeKernel(kernel, cl::NullRange, idx.size(), cl::NullRange);
+
+				std::vector<cl_float3> res_pos, res_norm;
+				res_pos.resize(idx.size());
+				res_norm.resize(idx.size());
+				queue.enqueueReadBuffer(pointsBuffer, CL_TRUE, 0, res_pos.size() * sizeof(cl_float3), res_pos.data());
+				queue.enqueueReadBuffer(normalsBuffer, CL_TRUE, 0, res_norm.size() * sizeof(cl_float3), res_norm.data());
+
+				for (int i = 0; i < res_pos.size(); i++)
+					for (int j = 0; j < 3; j++)
+						Assert::AreEqual(res_pos[i].v4.m128_f32[j], points[i * 3].v4.m128_f32[j], 0.001f);
+
+				Assert::AreEqual(res_norm[0].v4.m128_f32[0], 0.0f, 0.01f);
+				Assert::AreEqual(res_norm[0].v4.m128_f32[1], -1.0f, 0.01f);
+				Assert::AreEqual(res_norm[0].v4.m128_f32[2], 0.0f, 0.01f);
+
+				Assert::AreEqual(res_norm[1].v4.m128_f32[0], 0.71f, 0.01f);
+				Assert::AreEqual(res_norm[1].v4.m128_f32[1], 0.71f, 0.01f);
+				Assert::AreEqual(res_norm[1].v4.m128_f32[2], 0.0f, 0.01f);
+
+				Assert::AreEqual(res_norm[2].v4.m128_f32[0], 0.22f, 0.01f);
+				Assert::AreEqual(res_norm[2].v4.m128_f32[1], 0.79f, 0.01f);
+				Assert::AreEqual(res_norm[2].v4.m128_f32[2], 0.58f, 0.01f);
+			}
+			catch (cl::Error& error)
+			{
+				std::cout << error.what() << "\n"
+					<< getErrorString(error.err()) << std::endl;
+				return;
+			}
+		}
+
+		TEST_METHOD(CircleCalcTest)
+		{
+			std::vector<cl_float3> points = {
+				{-1,0,0}, {1,0,0}, {0,0,1},
+				{10,0,3}, {0.32,0,8}, {3,0,0.17}
+			};
+
+			std::vector<cl_int3> idx;
+			for (int i = 0; i < points.size(); i += 3)
+			{
+				idx.push_back({ i, i + 1, i + 2 });
+			}
+
+			cl_float3 normal = {0,1,0};
+
+			try
+			{
+				cl::Kernel kernel(program_c, "calcCylinder");
+				cl::Buffer inputBuffer(context, CL_MEM_READ_ONLY, points.size() * sizeof(cl_float3));
+				cl::Buffer idxBuffer(context, CL_MEM_READ_ONLY, idx.size() * sizeof(cl_int3));
+				cl::Buffer normalsBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_float3));
+				cl::Buffer pointsBuffer(context, CL_MEM_WRITE_ONLY, idx.size() * sizeof(cl_float3));
+
+				queue.enqueueWriteBuffer(inputBuffer, CL_TRUE, 0, points.size() * sizeof(cl_float3), points.data());
+				queue.enqueueWriteBuffer(idxBuffer, CL_TRUE, 0, idx.size() * sizeof(cl_int3), idx.data());
+				queue.enqueueWriteBuffer(normalsBuffer, CL_TRUE, 0, sizeof(cl_float3), &normal);
+
+				kernel.setArg(0, idxBuffer);
+				kernel.setArg(1, inputBuffer);
+				kernel.setArg(2, normalsBuffer);
+				kernel.setArg(3, pointsBuffer);
+
+				queue.enqueueNDRangeKernel(kernel, cl::NullRange, idx.size(), cl::NullRange);
+
+				std::vector<cl_float3> cylinders;
+				cylinders.resize(idx.size());
+				queue.enqueueReadBuffer(pointsBuffer, CL_TRUE, 0, cylinders.size() * sizeof(cl_float3), cylinders.data());
+
+				Assert::AreEqual(cylinders[0].v4.m128_f32[0], 0.0f, 0.01f);
+				Assert::AreEqual(cylinders[0].v4.m128_f32[1], 0.0f, 0.01f);
+				Assert::AreEqual(cylinders[0].v4.m128_f32[2], 0.0f, 0.01f);
+
+				Assert::AreEqual(cylinders[1].v4.m128_f32[0], 5.02f, 0.01f);
+				Assert::AreEqual(cylinders[1].v4.m128_f32[1], 0.0f, 0.01f);
+				Assert::AreEqual(cylinders[1].v4.m128_f32[2], 5.24f, 0.01f);
 			}
 			catch (cl::Error& error)
 			{
