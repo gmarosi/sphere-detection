@@ -133,7 +133,8 @@ void CylinderFitter::Fit(cl::CommandQueue& queue, cl::BufferGL& posBuffer)
 		const float close = 7;
 		for (int i = 0; i < POINT_CLOUD_SIZE; i++)
 		{
-			if (glm::distance(glm::vec2(0, 0), glm::vec2(pcl[i].x, pcl[i].z)) < close && pcl[i].y < 1)
+			float dist = glm::distance(glm::vec2(0, 0), glm::vec2(pcl[i].x, pcl[i].z));
+			if (dist < close && dist > 3 && pcl[i].y < 1)
 			{
 				if (pcl[i].w != 0)
 					planePoints.push_back({ pcl[i].x, pcl[i].y, pcl[i].z });
