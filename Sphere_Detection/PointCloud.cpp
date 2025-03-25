@@ -3,13 +3,21 @@
 #include <chrono>
 #include <random>
 
-unsigned round_up_div(unsigned a, unsigned b) {
+inline unsigned round_up_div(unsigned a, unsigned b) {
 	return static_cast<int>(ceil((double)a / b));
 }
 
 PointCloud::PointCloud()
 {
 	mapMem = nullptr;
+}
+
+void PointCloud::ChangeMode()
+{
+	if (++currentFitter == fitters.end())
+	{
+		currentFitter = fitters.begin();
+	}
 }
 
 bool PointCloud::Init(const MemoryNames& memNames)
@@ -81,35 +89,21 @@ bool PointCloud::InitCl(cl::Context& context, const cl::vector<cl::Device>& devi
 {
 	try
 	{
-		// Read kernel source code
-		std::ifstream sourceFile("sphere_detect.cl");
-		std::string sourceCode(std::istreambuf_iterator<char>(sourceFile), (std::istreambuf_iterator<char>()));
-		cl::Program::Sources source(1, std::make_pair(sourceCode.c_str(), sourceCode.length() + 1));
+		posBuffer = cl::BufferGL(context, CL_MEM_READ_WRITE, posVBO);
 
-		clContext = &context;
-		clProgram = cl::Program(*clContext, source);
+		auto sphereFitter = new SphereFitter();
+		sphereFitter->Init(context, devices);
+		fitters.push_back(sphereFitter);
 
-		try {
-			clProgram.build(devices);
-		}
-		catch (cl::Error error) {
-			std::cout << clProgram.getBuildInfo<CL_PROGRAM_BUILD_LOG>(devices[0]) << std::endl;
-			throw error;
-		}
+		auto cylinderFitter = new CylinderFitter();
+		cylinderFitter->Init(context, devices);
+		fitters.push_back(cylinderFitter);
 
-		sphereCalcKernel = cl::Kernel(clProgram, "calcSphere");
-		sphereFitKernel  = cl::Kernel(clProgram, "fitSphere");
-		reduceKernel	 = cl::Kernel(clProgram, "reduce");
-		sphereFillKernel = cl::Kernel(clProgram, "sphereFill");
-
-		posBuffer    = cl::BufferGL(*clContext, CL_MEM_READ_WRITE, posVBO);
-		indexBuffer  = cl::Buffer(*clContext, CL_MEM_WRITE_ONLY, FIT_COUNT * ITER_NUM * sizeof(int));
-		sphereBuffer = cl::Buffer(*clContext, CL_MEM_READ_ONLY, ITER_NUM * sizeof(cl_float4));
-		inlierBuffer = cl::Buffer(*clContext, CL_MEM_READ_WRITE, ITER_NUM * sizeof(int));
+		currentFitter = fitters.begin();
 	}
-	catch (cl::Error error)
+	catch (cl::Error& error)
 	{
-		std::cout << "PointCloud::InitCl : " << error.what() << std::endl;
+		std::cout << "PointCloud::InitCl(): " << error.what() << std::endl;
 		return false;
 	}
 
@@ -120,7 +114,7 @@ void PointCloud::Update()
 {
 	if (mapMem->hasBufferChanged())
 	{
-		fitSphere = true;
+		fit = true;
 		std::vector<float> rawData;
 		rawData.resize(POINT_CLOUD_SIZE * CHANNELS);
 		mapMem->readData(rawData.data());
@@ -133,10 +127,7 @@ void PointCloud::Update()
 			pointsIntensity[i / CHANNELS] = rawData[i + 3];
 
 			// storing indices of candidate points
-			if (glm::distance(glm::vec2(0, 0), glm::vec2(point.x, point.z)) < 6 && point.z < 0)
-			{
-				candidates.push_back(i / CHANNELS);
-			}
+			(*currentFitter)->EvalCandidate(point, i / CHANNELS);
 		}
 
 		glBindBuffer(GL_ARRAY_BUFFER, posVBO);
@@ -168,112 +159,18 @@ void PointCloud::Render(const glm::mat4& viewProj)
 	glDisable(GL_DEPTH_TEST);
 }
 
-void PointCloud::FitSphere(cl::CommandQueue& queue)
+void PointCloud::Fit(cl::CommandQueue& queue)
 {
-	if (!fitSphere)
+	if (!fit)
 		return;
-	fitSphere = false;
-
-	/*
-	Idea: calculate eg. 1000 spheres w/ their centers and radii
-		- 4 random indexes 0..POINT_CLOUD_SIZE
-		- calc spheres in kernel
-	*/
-
-	std::chrono::time_point<std::chrono::high_resolution_clock> start, end;
-	start = std::chrono::high_resolution_clock::now();
-
-	std::vector<int> indices;
-	indices.resize(FIT_COUNT * ITER_NUM);
-	for (int i = 0; i < ITER_NUM; i++)
-	{
-		// points close in data are close in space => more likely part of same object
-		int a = rand() % (candidates.size() - FIT_COUNT - 1);
-		for (int j = 0; j < FIT_COUNT; j++)
-		{
-			indices.push_back(candidates[a + j]);
-		}
-
-		/*
-		// generate FIT_COUNT unique random indices
-		// this solution is ~ 45 ms slower
-		std::set<int> rnds;
-		while (rnds.size() < FIT_COUNT)
-		{
-			rnds.insert(rand() % candidates.size());
-		}
-
-		for (auto it = rnds.begin(); it != rnds.end(); it++)
-		{
-			indices.push_back(candidates[*it]);
-		}
-		*/
-	}
+	fit = false;
 
 	try
 	{
-		// set inlier buffer to all zeroes
-		std::vector<int> zero(ITER_NUM, 0);
-		queue.enqueueWriteBuffer(inlierBuffer, CL_TRUE, 0, ITER_NUM * sizeof(int), zero.data());
-		queue.enqueueWriteBuffer(indexBuffer, CL_TRUE, 0, FIT_COUNT * ITER_NUM * sizeof(int), indices.data());
-		queue.finish();
-
-		// acquire GL position buffer
-		cl::vector<cl::Memory> acq;
-		acq.push_back(posBuffer);
-		queue.enqueueAcquireGLObjects(&acq);
-
-		// calculate spheres
-		sphereCalcKernel.setArg(0, posBuffer);
-		sphereCalcKernel.setArg(1, indexBuffer);
-		sphereCalcKernel.setArg(2, sphereBuffer);
-
-		queue.enqueueNDRangeKernel(sphereCalcKernel, cl::NullRange, ITER_NUM, cl::NullRange);
-
-		// Debug print for spheres
-		/*
-		glm::vec4 sphere;
-		queue.enqueueReadBuffer(sphereBuffer, CL_TRUE, 0, sizeof(cl_float4), &sphere);
-		std::cout << sphere.x << "; " << sphere.y << "; " << sphere.z << "; r: " << sphere.w << std::endl;
-		*/
-
-		// evaluate sphere inlier ratio
-		sphereFitKernel.setArg(0, posBuffer);
-		sphereFitKernel.setArg(1, sphereBuffer);
-		sphereFitKernel.setArg(2, inlierBuffer);
-		sphereFitKernel.setArg(3, ITER_NUM);
-
-		queue.enqueueNDRangeKernel(sphereFitKernel, cl::NullRange, POINT_CLOUD_SIZE, cl::NullRange);
-		
-		// reduction to get sphere with highest inlier ratio
-		const unsigned GROUP_SIZE = 64;
-		reduceKernel.setArg(0, inlierBuffer);
-		reduceKernel.setArg(1, sphereBuffer);
-		reduceKernel.setArg(2, GROUP_SIZE * sizeof(float), nullptr);
-		reduceKernel.setArg(3, GROUP_SIZE * sizeof(int), nullptr);
-
-		for (unsigned rem_size = ITER_NUM; rem_size > 1; rem_size = round_up_div(rem_size, GROUP_SIZE))
-		{
-			int t1 = round_up_div(rem_size, GROUP_SIZE) * GROUP_SIZE;
-			queue.enqueueNDRangeKernel(reduceKernel, cl::NullRange, t1, GROUP_SIZE);
-		}
-		
-		// color points which are on the best sphere
-		sphereFillKernel.setArg(0, posBuffer);
-		sphereFillKernel.setArg(1, sphereBuffer);
-
-		queue.enqueueNDRangeKernel(sphereFillKernel, cl::NullRange, POINT_CLOUD_SIZE, cl::NullRange);
-
-		queue.enqueueReleaseGLObjects(&acq);
-
-		end = std::chrono::high_resolution_clock::now();
-		std::chrono::duration<double> elapsed = end - start;
-		std::cout << elapsed.count() * 1000 << " ms" << std::endl;
+		(*currentFitter)->Fit(queue, posBuffer);
 	}
-	catch (cl::Error error)
+	catch (cl::Error&)
 	{
-		std::cout << "PointCloud::FitSphere : " << error.what() << std::endl;
 		exit(1);
 	}
-
 }

@@ -1,30 +1,7 @@
 #pragma once
 
-// GLEW
-#include <GL/glew.h>
-
-// SDL, OpenGL
-#include <SDL.h>
-#include <SDL_opengl.h>
-
-// GLM
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtx/transform2.hpp>
-#include <glm/gtc/type_ptr.hpp>
-
-// CL
-#define __NO_STD_VECTOR
-#define __CL_ENABLE_EXCEPTIONS
-
-#include <CL/cl.hpp>
-#include <CL/cl_gl.h>
-#include <oclutils.hpp>
-
-#include "ProgramObject.h"
-#include "BufferObject.h"
-#include "VertexArrayObject.h"
-
+#include "SphereFitter.h"
+#include "CylinderFitter.h"
 #include "SHMManager.h"
 
 class PointCloud
@@ -38,22 +15,20 @@ public:
 	void Update();
 	void Render(const glm::mat4& viewProj);
 
-	void FitSphere(cl::CommandQueue& queue);
+	void Fit(cl::CommandQueue& queue);
+
+	void ChangeMode();
 
 private:
-	const int POINT_CLOUD_SIZE = 14976;
 	const int CHANNELS = 4;
-	const int ITER_NUM = 4096;
-	const int FIT_COUNT = 8;
 
 	const float pointRenderSize = 5.f;
 
 	SHMManager *mapMem;
-	bool		fitSphere = false;
+	bool		fit = false;
 
 	std::vector<glm::vec4>	pointsPos;
 	std::vector<float>		pointsIntensity;
-	std::vector<int>		candidates;
 
 	// GL
 	ProgramObject program;
@@ -63,16 +38,8 @@ private:
 	GLuint intensityVBO;
 
 	// CL
-	cl::Context* clContext;
-	cl::Program  clProgram;
+	cl::BufferGL posBuffer;
 
-	cl::Kernel	sphereCalcKernel;
-	cl::Kernel	sphereFitKernel;
-	cl::Kernel	reduceKernel;
-	cl::Kernel  sphereFillKernel;
-
-	cl::BufferGL	posBuffer;
-	cl::Buffer		indexBuffer;
-	cl::Buffer		sphereBuffer;
-	cl::Buffer		inlierBuffer;
+	std::vector<IFitter*>::iterator currentFitter;
+	std::vector<IFitter*> fitters;
 };

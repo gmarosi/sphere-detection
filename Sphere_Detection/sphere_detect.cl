@@ -1,7 +1,7 @@
 #define CLOUD_SIZE 14976
-#define EPSILON 0.15
+#define EPSILON 0.03
 #define WIDTH 4
-#define HEIGHT 8
+#define HEIGHT 4
 
 __kernel void calcSphere(
 	__global float4* data,
@@ -127,7 +127,7 @@ __kernel void fitSphere(
 	for(int i = 0; i < ITER_NUM; i++)
 	{
 		float4 sphere = spheres[i];
-		float dist = distance(data[i].xyz, sphere.xyz);
+		float dist = distance(point.xyz, sphere.xyz);
 		if(fabs(sphere.w - dist) < EPSILON)
 		{
 			atomic_inc(&result[i]);
@@ -174,8 +174,5 @@ __kernel void sphereFill(
 	int g_id = get_global_id(0);
 	float dist = distance(data[g_id].xyz, spheres[0].xyz);
 
-	if(fabs(spheres[0].w - dist) < EPSILON)
-	{
-		data[g_id].w = 1;
-	}
+	data[g_id].w = fabs(spheres[0].w - dist) < EPSILON;
 }

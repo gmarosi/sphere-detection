@@ -94,7 +94,7 @@ void App::Update()
 
 	camera.Update(delta_time);
 	pointCloud->Update();
-	pointCloud->FitSphere(commandQueue);
+	pointCloud->Fit(commandQueue);
 
 	last_time = SDL_GetTicks();
 }
@@ -121,6 +121,10 @@ void App::KeyboardDown(SDL_KeyboardEvent& key)
 void App::KeyboardUp(SDL_KeyboardEvent& key)
 {
 	camera.KeyboardUp(key);
+	if (key.keysym.sym == SDLK_SPACE)
+	{
+		pointCloud->ChangeMode();
+	}
 }
 
 void App::MouseMove(SDL_MouseMotionEvent& mouse)
