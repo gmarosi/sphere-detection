@@ -107,7 +107,7 @@ void SphereFitter::Fit(cl::CommandQueue& queue, cl::BufferGL& posBuffer)
 		const unsigned GROUP_SIZE = 64;
 		reduceKernel.setArg(0, inlierBuffer);
 		reduceKernel.setArg(1, sphereBuffer);
-		reduceKernel.setArg(2, GROUP_SIZE * sizeof(float), nullptr);
+		reduceKernel.setArg(2, GROUP_SIZE * sizeof(int), nullptr);
 		reduceKernel.setArg(3, GROUP_SIZE * sizeof(int), nullptr);
 
 		for (unsigned rem_size = ITER_NUM; rem_size > 1; rem_size = round_up_div(rem_size, GROUP_SIZE))

@@ -362,7 +362,10 @@ namespace SphereDetectionTest
 		{
 			std::vector<cl_float3> points = {
 				{-1,0,0}, {1,0,0}, {0,0,1},
-				{10,0,3}, {0.32,0,8}, {3,0,0.17}
+				{10,0,3}, {0.32,0,8}, {3,0,0.17},
+				{5.63527261068398, -0.692904204691849, -1.52133834711262},
+				{5.4029353024265, -1.70681461715848, -1.51823251857139},
+				{10.7040668630443, -2.23217858522227, 0.190859516798132}
 			};
 
 			std::vector<cl_int3> idx;
@@ -371,24 +374,19 @@ namespace SphereDetectionTest
 				idx.push_back({ i, i + 1, i + 2 });
 			}
 
-			cl_float3 normal = {0,1,0};
-
 			try
 			{
 				cl::Kernel kernel(program_c, "calcCylinder");
 				cl::Buffer inputBuffer(context, CL_MEM_READ_ONLY, points.size() * sizeof(cl_float3));
 				cl::Buffer idxBuffer(context, CL_MEM_READ_ONLY, idx.size() * sizeof(cl_int3));
-				cl::Buffer normalsBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_float3));
 				cl::Buffer pointsBuffer(context, CL_MEM_WRITE_ONLY, idx.size() * sizeof(cl_float3));
 
 				queue.enqueueWriteBuffer(inputBuffer, CL_TRUE, 0, points.size() * sizeof(cl_float3), points.data());
 				queue.enqueueWriteBuffer(idxBuffer, CL_TRUE, 0, idx.size() * sizeof(cl_int3), idx.data());
-				queue.enqueueWriteBuffer(normalsBuffer, CL_TRUE, 0, sizeof(cl_float3), &normal);
 
 				kernel.setArg(0, idxBuffer);
 				kernel.setArg(1, inputBuffer);
-				kernel.setArg(2, normalsBuffer);
-				kernel.setArg(3, pointsBuffer);
+				kernel.setArg(2, pointsBuffer);
 
 				queue.enqueueNDRangeKernel(kernel, cl::NullRange, idx.size(), cl::NullRange);
 
@@ -398,11 +396,15 @@ namespace SphereDetectionTest
 
 				Assert::AreEqual(cylinders[0].v4.m128_f32[0], 0.0f, 0.01f);
 				Assert::AreEqual(cylinders[0].v4.m128_f32[1], 0.0f, 0.01f);
-				Assert::AreEqual(cylinders[0].v4.m128_f32[2], 0.0f, 0.01f);
+				Assert::AreEqual(cylinders[0].v4.m128_f32[2], 1.0f, 0.01f);
 
 				Assert::AreEqual(cylinders[1].v4.m128_f32[0], 5.02f, 0.01f);
-				Assert::AreEqual(cylinders[1].v4.m128_f32[1], 0.0f, 0.01f);
-				Assert::AreEqual(cylinders[1].v4.m128_f32[2], 5.24f, 0.01f);
+				Assert::AreEqual(cylinders[1].v4.m128_f32[1], 5.24f, 0.01f);
+				Assert::AreEqual(cylinders[1].v4.m128_f32[2], 5.45f, 0.01f);
+
+				Assert::AreEqual(cylinders[2].v4.m128_f32[0], 5.63f, 0.01f);
+				Assert::AreEqual(cylinders[2].v4.m128_f32[1], 6.85f, 0.01f);
+				Assert::AreEqual(cylinders[2].v4.m128_f32[2], 8.37f, 0.01f);
 			}
 			catch (cl::Error& error)
 			{
