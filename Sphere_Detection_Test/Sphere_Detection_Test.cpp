@@ -242,7 +242,7 @@ namespace SphereDetectionTest
 
 		TEST_METHOD(ReduceTest)
 		{
-			const size_t size = 1024;
+			const size_t size = 1 << 12;
 			std::vector<int> inliers;
 			std::vector<cl_float4> spheres;
 			for (int i = 0; i < size; i++)

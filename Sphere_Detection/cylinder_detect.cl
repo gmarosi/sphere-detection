@@ -1,6 +1,6 @@
 const int CLOUD_SIZE = 14976;
 const float EPSILON = 0.12; // primary epsilon value
-const float EPS_2 = 0.03; // secondary epsilon value
+const float EPS_2 = 0.07; // secondary epsilon value
 
 __kernel void calcPlane(
 	__global float4* data,
