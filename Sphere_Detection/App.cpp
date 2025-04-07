@@ -8,7 +8,7 @@ App::App()
 
 bool App::Init()
 {
-	glClearColor(0.125f, 0.25f, 0.5f, 1.0f);
+	glClearColor(0.125f, 0.125f, 0.125f, 1.0f);
 
 	glEnable(GL_CULL_FACE);
 	glEnable(GL_DEPTH_TEST);
@@ -27,13 +27,6 @@ bool App::Init()
 	memNames.second = snd;
 
 	pointCloud->Init(memNames);
-
-	axisProgram.AttachShaders({
-		{GL_VERTEX_SHADER,	 "axis.vert"},
-		{GL_FRAGMENT_SHADER, "axis.frag"}
-		});
-
-	axisProgram.LinkProgram();
 
 	camera.SetProj(glm::radians(60.0f), 640.0f / 480.0f, 0.01f, 1000.0f);
 
@@ -104,11 +97,6 @@ void App::Render()
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glm::mat4 viewProj = camera.GetViewProj();
-
-	axisProgram.Use();
-	axisProgram.SetUniform("MVP", viewProj * glm::mat4(1.0f) * glm::translate<float>(glm::vec3(0, 3, 0)));
-	glDrawArrays(GL_LINES, 0, 6);
-	axisProgram.Unuse();
 
 	pointCloud->Render(viewProj);
 }

@@ -26,8 +26,6 @@ public:
 private:
 	PointCloud* pointCloud;
 
-	ProgramObject axisProgram;
-
 	gCamera camera;
 
 	// CL
