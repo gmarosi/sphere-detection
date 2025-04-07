@@ -26,8 +26,6 @@
 #include <vector>
 
 #include "ProgramObject.h"
-#include "BufferObject.h"
-#include "VertexArrayObject.h"
 
 class IFitter
 {
