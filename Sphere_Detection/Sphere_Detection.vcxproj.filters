@@ -136,12 +136,6 @@
     <None Include="Includes\VertexArrayObject.inl">
       <Filter>GLUtils</Filter>
     </None>
-    <None Include="axis.vert">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="axis.frag">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="sphere_detect.cl">
       <Filter>Kernels</Filter>
     </None>

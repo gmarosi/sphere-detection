@@ -170,8 +170,6 @@
     <ClInclude Include="SphereFitter.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="axis.frag" />
-    <None Include="axis.vert" />
     <None Include="cloud.frag" />
     <None Include="cloud.vert" />
     <None Include="cylinder_detect.cl" />
