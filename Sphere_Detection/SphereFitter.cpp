@@ -99,9 +99,8 @@ void SphereFitter::Fit(cl::CommandQueue& queue, cl::BufferGL& posBuffer)
 		fitKernel.setArg(0, candidateBuffer);
 		fitKernel.setArg(1, sphereBuffer);
 		fitKernel.setArg(2, inlierBuffer);
-		fitKernel.setArg(3, ITER_NUM);
 
-		queue.enqueueNDRangeKernel(fitKernel, cl::NullRange, candidates.size(), cl::NullRange);
+		queue.enqueueNDRangeKernel(fitKernel, cl::NullRange, cl::NDRange(ITER_NUM, candidates.size()), cl::NullRange);
 
 		// reduction to get sphere with highest inlier ratio
 		const unsigned GROUP_SIZE = 64;

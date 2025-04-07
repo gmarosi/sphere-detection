@@ -117,21 +117,17 @@ __kernel void calcSphere(
 __kernel void fitSphere(
 	__global float4* data,
 	__global float4* spheres,
-	__global int*  result,
-	int ITER_NUM)
+	__global int*  result)
 {
-	int g_id = get_global_id(0);
-	float4 point = data[g_id];
+	int g_id0 = get_global_id(0);
+	int g_id1 = get_global_id(1);
+	float4 sphere = spheres[g_id0];
+	float4 point = data[g_id1];
 
-	// reverse naive implementation
-	for(int i = 0; i < ITER_NUM; i++)
+	float dist = distance(point.xyz, sphere.xyz);
+	if(fabs(sphere.w - dist) < EPSILON)
 	{
-		float4 sphere = spheres[i];
-		float dist = distance(point.xyz, sphere.xyz);
-		if(fabs(sphere.w - dist) < EPSILON)
-		{
-			atomic_inc(&result[i]);
-		}
+		atomic_inc(&result[g_id0]);
 	}
 }
 

@@ -97,9 +97,8 @@ void CylinderFitter::Fit(cl::CommandQueue& queue, cl::BufferGL& posBuffer)
 		planeFitKernel.setArg(1, planePointsBuffer);
 		planeFitKernel.setArg(2, planeNormalsBuffer);
 		planeFitKernel.setArg(3, planeInliersBuffer);
-		planeFitKernel.setArg(4, ITER_NUM);
 
-		queue.enqueueNDRangeKernel(planeFitKernel, cl::NullRange, POINT_CLOUD_SIZE, cl::NullRange);
+		queue.enqueueNDRangeKernel(planeFitKernel, cl::NullRange, cl::NDRange(ITER_NUM, POINT_CLOUD_SIZE), cl::NullRange);
 
 		// reduction to get plane with highest inlier count
 		const unsigned GROUP_SIZE = 64;

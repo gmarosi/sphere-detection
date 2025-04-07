@@ -36,22 +36,19 @@ __kernel void fitPlane(
 	__global float4* data,
 	__global float3* points,
 	__global float3* normals,
-	__global int*	 inliers,
-	int ITER_NUM)
+	__global int*	 inliers)
 {
-	int g_id = get_global_id(0);
-	float3 point = data[g_id].xyz;
+	int g_id0 = get_global_id(0);
+	int g_id1 = get_global_id(1);
 
-	for(int i = 0; i < ITER_NUM; i++)
+	float3 p = points[g_id0];
+	float3 n = normals[g_id0];
+	float3 point = data[g_id1].xyz;
+
+	// point is on plane if |<normal, point - plane_point>| < EPSILON
+	if(fabs(dot(n, point - p)) < EPSILON)
 	{
-		float3 p = points[i];
-		float3 n = normals[i];
-
-		// point is on plane if |<normal, point - plane_point>| < EPSILON
-		if(fabs(dot(n, point - p)) < EPSILON)
-		{
-			atomic_inc(&inliers[i]);
-		}
+		atomic_inc(&inliers[g_id0]);
 	}
 }
 
