@@ -476,6 +476,60 @@ namespace SphereDetectionTest
 			}
 		}
 
+		TEST_METHOD(PlaneInlierTest)
+		{
+			cl_float3 point = { 0,0,0 };
+			cl_float3 norm = { 0,1,0 };
+
+			std::vector<cl_float4> points = {
+				{1,0,0,0},
+				{0,0,1,0},
+				{-1,0,0,0},
+				{0,0,-1,0},
+				{1,0,1,0},
+				{-1,0,-1,0},
+				{0,1,0,0},
+				{0,-1,0,0},
+				{10,1,2,0},
+				{5,0.5,0,0}
+			};
+			size_t size = points.size();
+
+			int inlier = 0;
+			try
+			{
+				cl::Kernel kernel(program_c, "fitPlane");
+
+				cl::Buffer dataBuffer(context, CL_MEM_READ_ONLY, size * sizeof(cl_float4));
+				cl::Buffer pointBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_float3));
+				cl::Buffer normBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_float3));
+				cl::Buffer inlierBuffer(context, CL_MEM_WRITE_ONLY, sizeof(int));
+
+				queue.enqueueWriteBuffer(dataBuffer, CL_TRUE, 0, size * sizeof(cl_float4), points.data());
+				queue.enqueueWriteBuffer(pointBuffer, CL_TRUE, 0, sizeof(cl_float3), &point);
+				queue.enqueueWriteBuffer(normBuffer, CL_TRUE, 0, sizeof(cl_float3), &norm);
+				queue.enqueueWriteBuffer(inlierBuffer, CL_TRUE, 0, sizeof(int), &inlier);
+				queue.finish();
+
+				kernel.setArg(0, dataBuffer);
+				kernel.setArg(1, pointBuffer);
+				kernel.setArg(2, normBuffer);
+				kernel.setArg(3, inlierBuffer);
+
+				queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(1, size), cl::NullRange);
+
+				queue.enqueueReadBuffer(inlierBuffer, CL_TRUE, 0, sizeof(int), &inlier);
+
+				Assert::AreEqual(6, inlier);
+			}
+			catch (cl::Error& error)
+			{
+				std::cout << error.what() << "\n"
+					<< getErrorString(error.err()) << std::endl;
+				return;
+			}
+		}
+
 		TEST_METHOD(CircleCalcTest)
 		{
 			std::vector<cl_float3> points = {
