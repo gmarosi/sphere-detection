@@ -530,6 +530,63 @@ namespace SphereDetectionTest
 			}
 		}
 
+		TEST_METHOD(PlaneFillTest)
+		{
+			cl_float3 point = { 0,0,0 };
+			cl_float3 norm = { 0,1,0 };
+
+			std::vector<cl_float4> points = {
+				{1,0,0,0},
+				{0,0,1,0},
+				{-1,0,0,0},
+				{0,0,-1,0},
+				{1,0,1,0},
+				{-1,0,-1,0},
+				{0,1,0,0},
+				{0,-1,0,0},
+				{10,1,2,0},
+				{5,0.5,0,0}
+			};
+			size_t size = points.size();
+
+			try
+			{
+				cl::Kernel kernel(program_c, "fillPlane");
+
+				cl::Buffer dataBuffer(context, CL_MEM_READ_ONLY, size * sizeof(cl_float4));
+				cl::Buffer pointBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_float3));
+				cl::Buffer normBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_float3));
+
+				queue.enqueueWriteBuffer(dataBuffer, CL_TRUE, 0, size * sizeof(cl_float4), points.data());
+				queue.enqueueWriteBuffer(pointBuffer, CL_TRUE, 0, sizeof(cl_float3), &point);
+				queue.enqueueWriteBuffer(normBuffer, CL_TRUE, 0, sizeof(cl_float3), &norm);
+				queue.finish();
+
+				kernel.setArg(0, dataBuffer);
+				kernel.setArg(1, pointBuffer);
+				kernel.setArg(2, normBuffer);
+
+				queue.enqueueNDRangeKernel(kernel, cl::NullRange, size, cl::NullRange);
+
+				queue.enqueueReadBuffer(dataBuffer, CL_TRUE, 0, size * sizeof(cl_float4), points.data());
+
+				for (int i = 0; i < 6; i++)
+				{
+					Assert::AreEqual(0.25f, points[i].s[3], 0.01f);
+				}
+				for (int i = 6; i < size; i++)
+				{
+					Assert::AreEqual(0.0f, points[i].s[3], 0.01f);
+				}
+			}
+			catch (cl::Error& error)
+			{
+				std::cout << error.what() << "\n"
+					<< getErrorString(error.err()) << std::endl;
+				return;
+			}
+		}
+
 		TEST_METHOD(CircleCalcTest)
 		{
 			std::vector<cl_float3> points = {
