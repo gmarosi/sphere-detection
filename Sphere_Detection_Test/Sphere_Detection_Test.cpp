@@ -642,5 +642,52 @@ namespace SphereDetectionTest
 				return;
 			}
 		}
+
+		TEST_METHOD(CylinderInlierTest)
+		{
+			cl_float3 cylinder = { 0,0,1 };
+
+			std::vector<cl_float4> points = {
+				{1,0,0,0},
+				{0,0,1,0},
+				{1,5,0,0},
+				{0.71,4,0.71,0},
+				{1,1,1,0},
+				{2,0,0,0},
+				{0,1,0,0},
+				{0,0,0,0}
+			};
+			size_t size = points.size();
+			int inlier = 0;
+
+			try
+			{
+				cl::Kernel kernel(program_c, "fitCylinder");
+
+				cl::Buffer dataBuffer(context, CL_MEM_READ_ONLY, size * sizeof(cl_float4));
+				cl::Buffer cylinderBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_float3));
+				cl::Buffer inlierBuffer(context, CL_MEM_WRITE_ONLY, sizeof(int));
+
+				queue.enqueueWriteBuffer(dataBuffer, CL_TRUE, 0, size * sizeof(cl_float4), points.data());
+				queue.enqueueWriteBuffer(cylinderBuffer, CL_TRUE, 0, sizeof(cl_float3), &cylinder);
+				queue.enqueueWriteBuffer(inlierBuffer, CL_TRUE, 0, sizeof(int), &inlier);
+
+				kernel.setArg(0, dataBuffer);
+				kernel.setArg(1, cylinderBuffer);
+				kernel.setArg(2, inlierBuffer);
+
+				queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(1, size), cl::NullRange);
+
+				queue.enqueueReadBuffer(inlierBuffer, CL_TRUE, 0, sizeof(int), &inlier);
+
+				Assert::AreEqual(4, inlier);
+			}
+			catch (cl::Error& error)
+			{
+				std::cout << error.what() << "\n"
+					<< getErrorString(error.err()) << std::endl;
+				return;
+			}
+		}
 	};
 }
