@@ -1,6 +1,6 @@
-const int CLOUD_SIZE = 14976;
-const float EPSILON = 0.12; // primary epsilon value
-const float EPS_2 = 0.07; // secondary epsilon value
+#define CLOUD_SIZE 14976
+#define EPSILON 0.12
+#define EPS_2 0.07
 
 __kernel void calcPlane(
 	__global float4* data,
