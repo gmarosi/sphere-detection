@@ -284,7 +284,7 @@ namespace SphereDetectionTest
 				kernel.setArg(1, sphereBuffer);
 				kernel.setArg(2, inlierBuffer);
 
-				queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(1, points.size()), cl::NullRange);
+				queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(1, size), cl::NullRange);
 
 				int inlier;
 				queue.enqueueReadBuffer(inlierBuffer, CL_TRUE, 0, sizeof(int), &inlier);
@@ -346,6 +346,64 @@ namespace SphereDetectionTest
 				{
 					Assert::IsTrue(inl_res[0] >= inl_res[i]);
 					Assert::AreEqual((float)(inl_res[i]), sph_res[i].v4.m128_f32[0], 0.1f);
+				}
+			}
+			catch (cl::Error& error)
+			{
+				std::cout << error.what() << "\n"
+					<< getErrorString(error.err()) << std::endl;
+				return;
+			}
+		}
+
+		TEST_METHOD(SphereFillTest)
+		{
+			cl_float4 sphere = { 0, 0, 0, 1 };
+
+			// expected: first 8 fits, last 5 doesn't
+			std::vector<cl_float4> points = {
+				{1, 0, 0, 0},
+				{0, 1, 0, 0},
+				{0, 0, 1, 0},
+				{-1, 0, 0, 0},
+				{0, -1, 0, 0},
+				{0, 0, -1, 0},
+				{0.98, 0, 0, 0},
+				{0, 1.02, 0, 0},
+				{2, 1, 0, 0},
+				{10, 10, 10, 0},
+				{-100, 0, 0, 0},
+				{1.05, 0, 0, 0},
+				{0, 0, 0.7, 0}
+			};
+
+			size_t size = points.size();
+
+			try
+			{
+				cl::Kernel kernel(program, "fillSphere");
+
+				cl::Buffer pointsBuffer(context, CL_MEM_READ_WRITE, size * sizeof(cl_float4));
+				cl::Buffer sphereBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_float4));
+
+				queue.enqueueWriteBuffer(pointsBuffer, CL_TRUE, 0, size * sizeof(cl_float4), points.data());
+				queue.enqueueWriteBuffer(sphereBuffer, CL_TRUE, 0, sizeof(cl_float4), &sphere);
+				queue.finish();
+
+				kernel.setArg(0, pointsBuffer);
+				kernel.setArg(1, sphereBuffer);
+
+				queue.enqueueNDRangeKernel(kernel, cl::NullRange, size, cl::NullRange);
+
+				queue.enqueueReadBuffer(pointsBuffer, CL_TRUE, 0, size * sizeof(cl_float4), points.data());
+
+				for (int i = 0; i < 8; i++)
+				{
+					Assert::AreEqual(1.0f, points[i].s[3], 0.001f);
+				}
+				for (int i = 8; i < size; i++)
+				{
+					Assert::AreEqual(0.0f, points[i].s[3], 0.001f);
 				}
 			}
 			catch (cl::Error& error)
