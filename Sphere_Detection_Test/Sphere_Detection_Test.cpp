@@ -587,7 +587,7 @@ namespace SphereDetectionTest
 			}
 		}
 
-		TEST_METHOD(CircleCalcTest)
+		TEST_METHOD(CylinderCalcTest)
 		{
 			std::vector<cl_float3> points = {
 				{-1,0,0}, {1,0,0}, {0,0,1},
