@@ -27,7 +27,7 @@ void SphereFitter::Init(cl::Context& context, const cl::vector<cl::Device>& devi
 	calcKernel	 = cl::Kernel(program, "calcSphere");
 	fitKernel	 = cl::Kernel(program, "fitSphere");
 	reduceKernel = cl::Kernel(program, "reduce");
-	fillKernel   = cl::Kernel(program, "sphereFill");
+	fillKernel   = cl::Kernel(program, "fillSphere");
 
 	indexBuffer  = cl::Buffer(context, CL_MEM_WRITE_ONLY, ITER_NUM * FIT_NUM * sizeof(int));
 	sphereBuffer = cl::Buffer(context, CL_MEM_READ_ONLY, ITER_NUM * sizeof(cl_float4));

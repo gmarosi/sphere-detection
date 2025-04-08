@@ -163,7 +163,7 @@ __kernel void reduce(
 	}
 }
 
-__kernel void sphereFill(
+__kernel void fillSphere(
 	__global float4* data,
 	__global float4* spheres)
 {
