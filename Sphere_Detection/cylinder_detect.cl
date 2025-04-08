@@ -184,7 +184,7 @@ __kernel void reduceCylinder(
 	}
 }
 
-__kernel void colorCylinder(
+__kernel void fillCylinder(
 	__global float4* data,
 	__global float3* cylinders)
 {
