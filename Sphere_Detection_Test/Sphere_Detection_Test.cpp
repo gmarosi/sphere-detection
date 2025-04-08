@@ -1,3 +1,4 @@
+#include <iostream>
 #include <fstream>
 #include <vector>
 #include <algorithm>
@@ -230,6 +231,65 @@ namespace SphereDetectionTest
 				Assert::AreEqual(results[3].v4.m128_f32[1], 366.37f, 0.01f);
 				Assert::AreEqual(results[3].v4.m128_f32[2], -366.22f, 0.01f);
 				Assert::AreEqual(results[3].v4.m128_f32[3], 710.95f, 0.01f);
+			}
+			catch (cl::Error& error)
+			{
+				std::cout << error.what() << "\n"
+					<< "spherecalc\n"
+					<< getErrorString(error.err()) << std::endl;
+				return;
+			}
+		}
+
+		TEST_METHOD(SphereInlierTest)
+		{
+			cl_float4 sphere = { 0, 0, 0, 1 };
+
+			// expected: first 8 fits, last 5 doesn't
+			std::vector<cl_float4> points = {
+				{1, 0, 0, 0},
+				{0, 1, 0, 0},
+				{0, 0, 1, 0},
+				{-1, 0, 0, 0},
+				{0, -1, 0, 0},
+				{0, 0, -1, 0},
+				{0.98, 0, 0, 0},
+				{0, 1.02, 0, 0},
+				{2, 1, 0, 0},
+				{10, 10, 10, 0},
+				{-100, 0, 0, 0},
+				{1.05, 0, 0, 0},
+				{0, 0, 0.7, 0}
+			};
+
+			// for inlier init
+			int zero = 0;
+
+			size_t size = points.size();
+
+			try
+			{
+				cl::Kernel kernel(program, "fitSphere");
+
+				cl::Buffer pointsBuffer(context, CL_MEM_READ_ONLY, size * sizeof(cl_float4));
+				cl::Buffer sphereBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_float4));
+				cl::Buffer inlierBuffer(context, CL_MEM_WRITE_ONLY, sizeof(int));
+
+				queue.enqueueWriteBuffer(pointsBuffer, CL_TRUE, 0, size * sizeof(cl_float4), points.data());
+				queue.enqueueWriteBuffer(sphereBuffer, CL_TRUE, 0, sizeof(cl_float4), &sphere);
+				queue.enqueueWriteBuffer(inlierBuffer, CL_TRUE, 0, sizeof(int), &zero);
+				queue.finish();
+
+				kernel.setArg(0, pointsBuffer);
+				kernel.setArg(1, sphereBuffer);
+				kernel.setArg(2, inlierBuffer);
+
+				queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(1, points.size()), cl::NullRange);
+
+				int inlier;
+				queue.enqueueReadBuffer(inlierBuffer, CL_TRUE, 0, sizeof(int), &inlier);
+
+				Assert::AreEqual(8, inlier);
 			}
 			catch (cl::Error& error)
 			{
