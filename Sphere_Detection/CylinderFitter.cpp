@@ -39,7 +39,7 @@ void CylinderFitter::Init(cl::Context& context, const cl::vector<cl::Device>& de
 	cylinderCalcKernel = cl::Kernel(program, "calcCylinder");
 	cylinderFitKernel = cl::Kernel(program, "fitCylinder");
 	cylinderReduceKernel = cl::Kernel(program, "reduceCylinder");
-	cylinderColorKernel = cl::Kernel(program, "colorCylinder");
+	cylinderColorKernel = cl::Kernel(program, "fillCylinder");
 
 	cylinderRandBuffer = cl::Buffer(context, CL_MEM_READ_ONLY, CYLINDER_ITER_NUM * sizeof(cl_int3));
 	cylinderDataBuffer = cl::Buffer(context, CL_MEM_READ_WRITE, CYLINDER_ITER_NUM * sizeof(cl_float3));
