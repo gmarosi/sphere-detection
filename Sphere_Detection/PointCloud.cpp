@@ -25,7 +25,6 @@ bool PointCloud::Init(const MemoryNames& memNames)
 	mapMem = new SHMManager(memNames.first, memNames.second, sizeof(int), POINT_CLOUD_SIZE * CHANNELS * sizeof(int));
 
 	pointsPos.resize(POINT_CLOUD_SIZE);
-	pointsIntensity.resize(POINT_CLOUD_SIZE);
 
 	// Setup VAO & VBOs
 	glGenVertexArrays(1, &cloudVAO);
@@ -49,25 +48,6 @@ bool PointCloud::Init(const MemoryNames& memNames)
 		0
 	);
 
-	glGenBuffers(1, &intensityVBO);
-	glBindBuffer(GL_ARRAY_BUFFER, intensityVBO);
-	glBufferData(GL_ARRAY_BUFFER,
-		POINT_CLOUD_SIZE * sizeof(float),
-		nullptr,
-		GL_DYNAMIC_DRAW
-	);
-
-	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(
-		(GLuint)1,
-		1,
-		GL_FLOAT,
-		GL_FALSE,
-		0,
-		0
-	);
-
-	glBindVertexArray(0);
 	glBindVertexArray(0);
 
 	program.AttachShaders({
@@ -76,8 +56,7 @@ bool PointCloud::Init(const MemoryNames& memNames)
 	});
 
 	program.BindAttribLocations({
-		{0, "pointPos"},
-		{1, "pointIntensity"}
+		{0, "pointPos"}
 	});
 
 	program.LinkProgram();
@@ -124,7 +103,6 @@ void PointCloud::Update()
 			// last coordinate will be used by OpenCL kernel
 			glm::vec4 point = glm::vec4(rawData[i], rawData[i + 2], -rawData[i + 1], 0);
 			pointsPos[i / CHANNELS] = point;
-			pointsIntensity[i / CHANNELS] = rawData[i + 3];
 
 			// storing indices of candidate points
 			(*currentFitter)->EvalCandidate(point, i / CHANNELS);
@@ -132,8 +110,6 @@ void PointCloud::Update()
 
 		glBindBuffer(GL_ARRAY_BUFFER, posVBO);
 		glBufferData(GL_ARRAY_BUFFER, POINT_CLOUD_SIZE * sizeof(glm::vec4), pointsPos.data(), GL_DYNAMIC_DRAW);
-		glBindBuffer(GL_ARRAY_BUFFER, intensityVBO);
-		glBufferData(GL_ARRAY_BUFFER, POINT_CLOUD_SIZE * sizeof(float), pointsIntensity.data(), GL_DYNAMIC_DRAW);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	}
 }

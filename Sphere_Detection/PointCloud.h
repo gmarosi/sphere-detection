@@ -28,14 +28,12 @@ private:
 	bool		fit = false;
 
 	std::vector<glm::vec4>	pointsPos;
-	std::vector<float>		pointsIntensity;
 
 	// GL
 	ProgramObject program;
 
 	GLuint cloudVAO;
 	GLuint posVBO;
-	GLuint intensityVBO;
 
 	// CL
 	cl::BufferGL posBuffer;
