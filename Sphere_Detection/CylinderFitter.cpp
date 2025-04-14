@@ -11,9 +11,15 @@ void CylinderFitter::Init(cl::Context& context, const cl::vector<cl::Device>& de
 	this->context = &context;
 
 	std::ifstream cylinderFile("cylinder_detect.cl");
+	if (!cylinderFile.is_open())
+	{
+		std::cout << "CylinderFitter::Init(): cylinder_detect.cl could not be opened" << std::endl;
+		exit(1);
+	}
 	std::string cylinderCode(std::istreambuf_iterator<char>(cylinderFile), (std::istreambuf_iterator<char>()));
-	cl::Program::Sources cylinderSource(1, std::make_pair(cylinderCode.c_str(), cylinderCode.length() + 1));
+	cylinderFile.close();
 
+	cl::Program::Sources cylinderSource(1, std::make_pair(cylinderCode.c_str(), cylinderCode.length() + 1));
 	program = cl::Program(context, cylinderSource);
 
 	try

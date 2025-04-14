@@ -9,7 +9,13 @@ SphereFitter::SphereFitter() = default;
 void SphereFitter::Init(cl::Context& context, const cl::vector<cl::Device>& devices)
 {
 	std::ifstream sphereFile("sphere_detect.cl");
+	if (!sphereFile.is_open())
+	{
+		std::cout << "SphereFitter::Init(): sphere_detect.cl could not be opened" << std::endl;
+		exit(1);
+	}
 	std::string sphereCode(std::istreambuf_iterator<char>(sphereFile), (std::istreambuf_iterator<char>()));
+	sphereFile.close();
 
 	cl::Program::Sources sphereSource(1, std::make_pair(sphereCode.c_str(), sphereCode.length() + 1));
 	program = cl::Program(context, sphereSource);
