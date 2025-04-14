@@ -30,7 +30,7 @@ private:
 	std::vector<glm::vec4>	pointsPos;
 
 	// GL
-	ProgramObject program;
+	GLuint program;
 
 	GLuint cloudVAO;
 	GLuint posVBO;

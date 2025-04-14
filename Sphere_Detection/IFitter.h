@@ -25,8 +25,6 @@
 
 #include <vector>
 
-#include "ProgramObject.h"
-
 class IFitter
 {
 public:

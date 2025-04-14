@@ -50,16 +50,44 @@ bool PointCloud::Init(const MemoryNames& memNames)
 
 	glBindVertexArray(0);
 
-	program.AttachShaders({
-		{GL_VERTEX_SHADER,	 "cloud.vert"},
-		{GL_FRAGMENT_SHADER, "cloud.frag"}
-	});
+	program = glCreateProgram();
 
-	program.BindAttribLocations({
-		{0, "pointPos"}
-	});
+	// vertex shader
+	GLuint vert = glCreateShader(GL_VERTEX_SHADER);
+	std::ifstream vertFile("cloud.vert");
+	if (!vertFile.is_open())
+	{
+		std::cout << "Could not open cloud.vert" << std::endl;
+		exit(1);
+	}
+	std::string vertCode(std::istreambuf_iterator<char>(vertFile), (std::istreambuf_iterator<char>()));
+	const char* vertPtr = vertCode.c_str();
+	vertFile.close();
 
-	program.LinkProgram();
+	glShaderSource(vert, 1, &vertPtr, nullptr);
+	glCompileShader(vert);
+
+	// fragment shader
+	GLuint frag = glCreateShader(GL_FRAGMENT_SHADER);
+	std::ifstream fragFile("cloud.frag");
+	if (!fragFile.is_open())
+	{
+		std::cout << "Could not open cloud.frag" << std::endl;
+		exit(1);
+	}
+	std::string fragCode(std::istreambuf_iterator<char>(fragFile), (std::istreambuf_iterator<char>()));
+	const char* fragPtr = fragCode.c_str();
+	fragFile.close();
+
+	glShaderSource(frag, 1, &fragPtr, nullptr);
+	glCompileShader(frag);
+
+	glAttachShader(program, vert);
+	glAttachShader(program, frag);
+
+	glBindAttribLocation(program, 0, "pointPos");
+
+	glLinkProgram(program);
 
 	return true;
 }
@@ -120,16 +148,18 @@ void PointCloud::Render(const glm::mat4& viewProj)
 	glEnable(GL_PROGRAM_POINT_SIZE);
 	glPointSize(pointRenderSize);
 
-	program.Use();
+	glUseProgram(program);
 	glBindVertexArray(cloudVAO);
 
 	glm::mat4 cloudWorld(1.0f);
-	program.SetUniform("mvp", viewProj * cloudWorld);
+	glm::mat4 mvp = viewProj * cloudWorld;
+	GLuint matrix = glGetUniformLocation(program, "mvp");
+	glUniformMatrix4fv(matrix, 1, GL_FALSE, glm::value_ptr(mvp));
 
 	glDrawArrays(GL_POINTS, 0, POINT_CLOUD_SIZE);
 
 	glBindVertexArray(0);
-	program.Unuse();
+	glUseProgram(0);
 
 	glDisable(GL_PROGRAM_POINT_SIZE);
 	glDisable(GL_DEPTH_TEST);

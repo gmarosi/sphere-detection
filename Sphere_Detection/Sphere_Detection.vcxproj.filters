@@ -36,27 +36,6 @@
     <ClCompile Include="Includes\gCamera.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Includes\GLconversions.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Includes\GLDebugMessageCallback.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Includes\Mesh_OGL3.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Includes\ObjParser_OGL3.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Includes\ProgramObject.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Includes\ShaderObject.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Includes\VertexArrayObject.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="App.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -74,37 +53,7 @@
     <ClInclude Include="PointCloud.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Includes\BufferObject.h">
-      <Filter>GLUtils</Filter>
-    </ClInclude>
     <ClInclude Include="Includes\gCamera.h">
-      <Filter>GLUtils</Filter>
-    </ClInclude>
-    <ClInclude Include="Includes\GLconversions.hpp">
-      <Filter>GLUtils</Filter>
-    </ClInclude>
-    <ClInclude Include="Includes\GLDebugMessageCallback.h">
-      <Filter>GLUtils</Filter>
-    </ClInclude>
-    <ClInclude Include="Includes\GLUtils.hpp">
-      <Filter>GLUtils</Filter>
-    </ClInclude>
-    <ClInclude Include="Includes\Mesh_OGL3.h">
-      <Filter>GLUtils</Filter>
-    </ClInclude>
-    <ClInclude Include="Includes\ObjParser_OGL3.h">
-      <Filter>GLUtils</Filter>
-    </ClInclude>
-    <ClInclude Include="Includes\ProgramObject.h">
-      <Filter>GLUtils</Filter>
-    </ClInclude>
-    <ClInclude Include="Includes\ShaderObject.h">
-      <Filter>GLUtils</Filter>
-    </ClInclude>
-    <ClInclude Include="Includes\TextureObject.h">
-      <Filter>GLUtils</Filter>
-    </ClInclude>
-    <ClInclude Include="Includes\VertexArrayObject.h">
       <Filter>GLUtils</Filter>
     </ClInclude>
     <ClInclude Include="App.h">
@@ -123,18 +72,6 @@
   <ItemGroup>
     <None Include="cloud.frag">
       <Filter>Shaders</Filter>
-    </None>
-    <None Include="Includes\BufferObject.inl">
-      <Filter>GLUtils</Filter>
-    </None>
-    <None Include="Includes\ProgramObject.inl">
-      <Filter>GLUtils</Filter>
-    </None>
-    <None Include="Includes\TextureObject.inl">
-      <Filter>GLUtils</Filter>
-    </None>
-    <None Include="Includes\VertexArrayObject.inl">
-      <Filter>GLUtils</Filter>
     </None>
     <None Include="sphere_detect.cl">
       <Filter>Kernels</Filter>

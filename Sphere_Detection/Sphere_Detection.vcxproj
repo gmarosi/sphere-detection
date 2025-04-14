@@ -138,13 +138,6 @@
     <ClCompile Include="App.cpp" />
     <ClCompile Include="CylinderFitter.cpp" />
     <ClCompile Include="Includes\gCamera.cpp" />
-    <ClCompile Include="Includes\GLconversions.cpp" />
-    <ClCompile Include="Includes\GLDebugMessageCallback.cpp" />
-    <ClCompile Include="Includes\Mesh_OGL3.cpp" />
-    <ClCompile Include="Includes\ObjParser_OGL3.cpp" />
-    <ClCompile Include="Includes\ProgramObject.cpp" />
-    <ClCompile Include="Includes\ShaderObject.cpp" />
-    <ClCompile Include="Includes\VertexArrayObject.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="PointCloud.cpp" />
     <ClCompile Include="SHMManager.cpp" />
@@ -154,17 +147,7 @@
     <ClInclude Include="App.h" />
     <ClInclude Include="CylinderFitter.h" />
     <ClInclude Include="IFitter.h" />
-    <ClInclude Include="Includes\BufferObject.h" />
     <ClInclude Include="Includes\gCamera.h" />
-    <ClInclude Include="Includes\GLconversions.hpp" />
-    <ClInclude Include="Includes\GLDebugMessageCallback.h" />
-    <ClInclude Include="Includes\GLUtils.hpp" />
-    <ClInclude Include="Includes\Mesh_OGL3.h" />
-    <ClInclude Include="Includes\ObjParser_OGL3.h" />
-    <ClInclude Include="Includes\ProgramObject.h" />
-    <ClInclude Include="Includes\ShaderObject.h" />
-    <ClInclude Include="Includes\TextureObject.h" />
-    <ClInclude Include="Includes\VertexArrayObject.h" />
     <ClInclude Include="PointCloud.h" />
     <ClInclude Include="SHMManager.h" />
     <ClInclude Include="SphereFitter.h" />
@@ -173,10 +156,6 @@
     <None Include="cloud.frag" />
     <None Include="cloud.vert" />
     <None Include="cylinder_detect.cl" />
-    <None Include="Includes\BufferObject.inl" />
-    <None Include="Includes\ProgramObject.inl" />
-    <None Include="Includes\TextureObject.inl" />
-    <None Include="Includes\VertexArrayObject.inl" />
     <None Include="sphere_detect.cl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
