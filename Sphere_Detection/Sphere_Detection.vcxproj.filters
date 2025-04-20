@@ -82,5 +82,11 @@
     <None Include="cylinder_detect.cl">
       <Filter>Kernels</Filter>
     </None>
+    <None Include="sphere.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="sphere.vert">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

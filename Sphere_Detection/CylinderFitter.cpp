@@ -60,7 +60,7 @@ void CylinderFitter::EvalCandidate(const glm::vec4& point, const int idx)
 	}
 }
 
-void CylinderFitter::Fit(cl::CommandQueue& queue, cl::BufferGL& posBuffer)
+glm::vec4 CylinderFitter::Fit(cl::CommandQueue& queue, cl::BufferGL& posBuffer)
 {
 	std::vector<cl_int3> indices;
 	for (int i = 0; i < ITER_NUM; i++)
@@ -205,6 +205,8 @@ void CylinderFitter::Fit(cl::CommandQueue& queue, cl::BufferGL& posBuffer)
 
 		queue.enqueueReleaseGLObjects(&acq);
 		candidates.clear();
+
+		return { 0, 0, 0, 0 };
 	}
 	catch (cl::Error& error)
 	{

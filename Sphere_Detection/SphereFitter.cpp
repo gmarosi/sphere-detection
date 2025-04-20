@@ -52,12 +52,12 @@ void SphereFitter::EvalCandidate(const glm::vec4& point, const int idx)
 	}
 }
 
-void SphereFitter::Fit(cl::CommandQueue& queue, cl::BufferGL& posBuffer)
+glm::vec4 SphereFitter::Fit(cl::CommandQueue& queue, cl::BufferGL& posBuffer)
 {
 	if (candidates.empty())
 	{
 		std::cout << "SphereFitter::Fit(): no candidates, skipping sphere fit\n";
-		return;
+		return { 0,0,0,0 };
 	}
 
 	std::vector<int> indices;
@@ -134,6 +134,10 @@ void SphereFitter::Fit(cl::CommandQueue& queue, cl::BufferGL& posBuffer)
 
 		queue.enqueueReleaseGLObjects(&acq);
 		candidates.clear();
+		
+		cl_float4 result;
+		queue.enqueueReadBuffer(sphereBuffer, CL_TRUE, 0, sizeof(cl_float4), &result);
+		return { result.s[0], result.s[1], result.s[2], result.s[3] };
 	}
 	catch (cl::Error& error)
 	{

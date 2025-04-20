@@ -30,6 +30,6 @@ class IFitter
 public:
 	virtual ~IFitter() {}
 	virtual void Init(cl::Context&, const cl::vector<cl::Device>&) = 0;
-	virtual void Fit(cl::CommandQueue&, cl::BufferGL&) = 0;
+	virtual glm::vec4 Fit(cl::CommandQueue&, cl::BufferGL&) = 0;
 	virtual void EvalCandidate(const glm::vec4&, const int) = 0;
 };

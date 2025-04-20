@@ -156,6 +156,8 @@
     <None Include="cloud.frag" />
     <None Include="cloud.vert" />
     <None Include="cylinder_detect.cl" />
+    <None Include="sphere.frag" />
+    <None Include="sphere.vert" />
     <None Include="sphere_detect.cl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

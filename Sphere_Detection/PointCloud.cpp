@@ -14,9 +14,16 @@ PointCloud::PointCloud()
 
 void PointCloud::ChangeMode()
 {
-	if (++currentFitter == fitters.end())
+	switch (fitMode)
 	{
-		currentFitter = fitters.begin();
+	case SPHERE:
+		fitMode = CYLINDER;
+		currentFitter = cylinderFitter;
+		break;
+	case CYLINDER:
+		fitMode = SPHERE;
+		currentFitter = sphereFitter;
+		break;
 	}
 }
 
@@ -24,12 +31,12 @@ bool PointCloud::Init(const MemoryNames& memNames)
 {
 	mapMem = new SHMManager(memNames.first, memNames.second, sizeof(int), POINT_CLOUD_SIZE * CHANNELS * sizeof(int));
 
-	pointsPos.resize(POINT_CLOUD_SIZE);
-
+	// Setting up point cloud rendering
 	// Setup VAO & VBOs
 	glGenVertexArrays(1, &cloudVAO);
 	glBindVertexArray(cloudVAO);
 
+	// position buffer
 	glGenBuffers(1, &posVBO);
 	glBindBuffer(GL_ARRAY_BUFFER, posVBO);
 	glBufferData( GL_ARRAY_BUFFER,
@@ -49,45 +56,125 @@ bool PointCloud::Init(const MemoryNames& memNames)
 	);
 
 	glBindVertexArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 	program = glCreateProgram();
-
-	// vertex shader
-	GLuint vert = glCreateShader(GL_VERTEX_SHADER);
-	std::ifstream vertFile("cloud.vert");
-	if (!vertFile.is_open())
 	{
-		std::cout << "Could not open cloud.vert" << std::endl;
-		exit(1);
+		// vertex shader
+		GLuint vert = glCreateShader(GL_VERTEX_SHADER);
+		std::ifstream vertFile("cloud.vert");
+		if (!vertFile.is_open())
+		{
+			std::cout << "Could not open cloud.vert" << std::endl;
+			exit(1);
+		}
+		std::string vertCode(std::istreambuf_iterator<char>(vertFile), (std::istreambuf_iterator<char>()));
+		const char* vertPtr = vertCode.c_str();
+		vertFile.close();
+
+		glShaderSource(vert, 1, &vertPtr, nullptr);
+		glCompileShader(vert);
+
+		// fragment shader
+		GLuint frag = glCreateShader(GL_FRAGMENT_SHADER);
+		std::ifstream fragFile("cloud.frag");
+		if (!fragFile.is_open())
+		{
+			std::cout << "Could not open cloud.frag" << std::endl;
+			exit(1);
+		}
+		std::string fragCode(std::istreambuf_iterator<char>(fragFile), (std::istreambuf_iterator<char>()));
+		const char* fragPtr = fragCode.c_str();
+		fragFile.close();
+
+		glShaderSource(frag, 1, &fragPtr, nullptr);
+		glCompileShader(frag);
+
+		glAttachShader(program, vert);
+		glAttachShader(program, frag);
+
+		glBindAttribLocation(program, 0, "pointPos");
+
+		glLinkProgram(program);
+		glDeleteShader(vert);
+		glDeleteShader(frag);
 	}
-	std::string vertCode(std::istreambuf_iterator<char>(vertFile), (std::istreambuf_iterator<char>()));
-	const char* vertPtr = vertCode.c_str();
-	vertFile.close();
 
-	glShaderSource(vert, 1, &vertPtr, nullptr);
-	glCompileShader(vert);
+	// Setup of sphere rendering
+	glGenVertexArrays(1, &sphVAO);
+	glBindVertexArray(sphVAO);
 
-	// fragment shader
-	GLuint frag = glCreateShader(GL_FRAGMENT_SHADER);
-	std::ifstream fragFile("cloud.frag");
-	if (!fragFile.is_open())
+	glGenBuffers(1, &sphVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, sphVBO);
+	glBufferData(GL_ARRAY_BUFFER,
+		(vCount + 1) * (hCount + 1) * sizeof(glm::vec4),
+		nullptr,
+		GL_DYNAMIC_DRAW
+	);
+
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(
+		(GLuint)0,
+		4,
+		GL_FLOAT,
+		GL_FALSE,
+		0,
+		0
+	);
+
+	glGenBuffers(1, &sphIds);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sphIds);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+		3 * 2 * vCount * hCount,
+		nullptr,
+		GL_DYNAMIC_DRAW
+	);
+
+	glBindVertexArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+	sphProgram = glCreateProgram();
 	{
-		std::cout << "Could not open cloud.frag" << std::endl;
-		exit(1);
+		// vertex shader
+		GLuint vert = glCreateShader(GL_VERTEX_SHADER);
+		std::ifstream vertFile("sphere.vert");
+		if (!vertFile.is_open())
+		{
+			std::cout << "Could not open sphere.vert" << std::endl;
+			exit(1);
+		}
+		std::string vertCode(std::istreambuf_iterator<char>(vertFile), (std::istreambuf_iterator<char>()));
+		const char* vertPtr = vertCode.c_str();
+		vertFile.close();
+
+		glShaderSource(vert, 1, &vertPtr, nullptr);
+		glCompileShader(vert);
+
+		// fragment shader
+		GLuint frag = glCreateShader(GL_FRAGMENT_SHADER);
+		std::ifstream fragFile("sphere.frag");
+		if (!fragFile.is_open())
+		{
+			std::cout << "Could not open sphere.frag" << std::endl;
+			exit(1);
+		}
+		std::string fragCode(std::istreambuf_iterator<char>(fragFile), (std::istreambuf_iterator<char>()));
+		const char* fragPtr = fragCode.c_str();
+		fragFile.close();
+
+		glShaderSource(frag, 1, &fragPtr, nullptr);
+		glCompileShader(frag);
+
+		glAttachShader(sphProgram, vert);
+		glAttachShader(sphProgram, frag);
+
+		glBindAttribLocation(sphProgram, 0, "pointPos");
+
+		glLinkProgram(sphProgram);
+		glDeleteShader(vert);
+		glDeleteShader(frag);
 	}
-	std::string fragCode(std::istreambuf_iterator<char>(fragFile), (std::istreambuf_iterator<char>()));
-	const char* fragPtr = fragCode.c_str();
-	fragFile.close();
-
-	glShaderSource(frag, 1, &fragPtr, nullptr);
-	glCompileShader(frag);
-
-	glAttachShader(program, vert);
-	glAttachShader(program, frag);
-
-	glBindAttribLocation(program, 0, "pointPos");
-
-	glLinkProgram(program);
 
 	return true;
 }
@@ -98,15 +185,13 @@ bool PointCloud::InitCl(cl::Context& context, const cl::vector<cl::Device>& devi
 	{
 		posBuffer = cl::BufferGL(context, CL_MEM_READ_WRITE, posVBO);
 
-		auto sphereFitter = new SphereFitter();
+		sphereFitter = new SphereFitter();
 		sphereFitter->Init(context, devices);
-		fitters.push_back(sphereFitter);
 
-		auto cylinderFitter = new CylinderFitter();
+		cylinderFitter = new CylinderFitter();
 		cylinderFitter->Init(context, devices);
-		fitters.push_back(cylinderFitter);
 
-		currentFitter = fitters.begin();
+		currentFitter = sphereFitter;
 	}
 	catch (cl::Error& error)
 	{
@@ -123,7 +208,9 @@ void PointCloud::Update()
 	{
 		fit = true;
 		std::vector<float> rawData;
+		std::vector<glm::vec4> pointsPos;
 		rawData.resize(POINT_CLOUD_SIZE * CHANNELS);
+		pointsPos.resize(POINT_CLOUD_SIZE);
 		mapMem->readData(rawData.data());
 
 		for (size_t i = 0; i < POINT_CLOUD_SIZE * CHANNELS; i += CHANNELS)
@@ -133,7 +220,7 @@ void PointCloud::Update()
 			pointsPos[i / CHANNELS] = point;
 
 			// storing indices of candidate points
-			(*currentFitter)->EvalCandidate(point, i / CHANNELS);
+			currentFitter->EvalCandidate(point, i / CHANNELS);
 		}
 
 		glBindBuffer(GL_ARRAY_BUFFER, posVBO);
@@ -161,6 +248,19 @@ void PointCloud::Render(const glm::mat4& viewProj)
 	glBindVertexArray(0);
 	glUseProgram(0);
 
+	if (foundFit)
+	{
+		switch (fitMode)
+		{
+		case SPHERE:
+			RenderSphere(viewProj);
+			break;
+		case CYLINDER:
+			RenderCylinder(viewProj);
+			break;
+		}
+	}
+
 	glDisable(GL_PROGRAM_POINT_SIZE);
 	glDisable(GL_DEPTH_TEST);
 }
@@ -173,10 +273,86 @@ void PointCloud::Fit(cl::CommandQueue& queue)
 
 	try
 	{
-		(*currentFitter)->Fit(queue, posBuffer);
+		fitResult = currentFitter->Fit(queue, posBuffer);
+		foundFit = true;
 	}
 	catch (cl::Error&)
 	{
 		exit(1);
 	}
+}
+
+void PointCloud::RenderSphere(const glm::mat4& viewProj) const
+{
+	/*
+	Source of algorithm:
+	https://www.songho.ca/opengl/gl_sphere.html#sphere
+	*/
+	float x0 = fitResult.x;
+	float y0 = fitResult.y;
+	float z0 = fitResult.z;
+	float r  = fitResult.w;
+	constexpr float pi = glm::pi<float>();
+
+	std::vector<glm::vec4> vertices;
+	for (int i = 0; i <= hCount; i++)
+	{
+		float h = i / (float)hCount;
+		float theta = 2 * glm::pi<float>() * h;
+		float costh = cosf(theta);
+		float sinth = sinf(theta);
+
+		for (int j = 0; j <= vCount; j++)
+		{
+			float v = j / (float)vCount;
+			float phi = v * glm::pi<float>();
+			
+			vertices.push_back({
+					x0 + r * sinf(phi) * costh,
+					y0 + r * cosf(phi),
+					z0 + r * sinf(phi) * sinth,
+					1
+				});
+		}
+	}
+
+	std::vector<unsigned int> indices;
+	for (int i = 0; i < hCount; i++)
+	{
+		for (int j = 0; j < vCount; j++)
+		{
+			// two triangles per segment
+			indices.push_back(i		 + j		* (hCount + 1));
+			indices.push_back((i + 1) + j		* (hCount + 1));
+			indices.push_back(i		 + (j + 1)	* (hCount + 1));
+			indices.push_back((i + 1) + j		* (hCount + 1));
+			indices.push_back((i + 1) + (j + 1) * (hCount + 1));
+			indices.push_back(i		 + (j + 1)  * (hCount + 1));
+		}
+	}
+	
+	glBindBuffer(GL_ARRAY_BUFFER, sphVBO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sphIds);
+	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec4), vertices.data(), GL_DYNAMIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_DYNAMIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	glUseProgram(sphProgram);
+	glBindVertexArray(sphVAO);
+
+	glm::mat4 world(1.0f);
+	glm::mat4 mvp = viewProj * world;
+	GLuint matrix = glGetUniformLocation(sphProgram, "mvp");
+	glUniformMatrix4fv(matrix, 1, GL_FALSE, glm::value_ptr(mvp));
+
+	glDrawElements(GL_TRIANGLES, 3 * 2 * (vCount + 1) * (hCount + 1), GL_UNSIGNED_INT, 0);
+
+	glBindVertexArray(0);
+	glUseProgram(0);
+}
+
+void PointCloud::RenderCylinder(const glm::mat4& viewProj) const
+{
+
 }

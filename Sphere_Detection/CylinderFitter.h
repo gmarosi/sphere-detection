@@ -8,7 +8,7 @@ public:
 	CylinderFitter();
 
 	void Init(cl::Context&, const cl::vector<cl::Device>&) override;
-	void Fit(cl::CommandQueue&, cl::BufferGL&) override;
+	glm::vec4 Fit(cl::CommandQueue&, cl::BufferGL&) override;
 	void EvalCandidate(const glm::vec4&, const int) override;
 
 private:
