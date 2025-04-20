@@ -101,6 +101,16 @@ bool PointCloud::Init(const MemoryNames& memNames)
 	}
 
 	// Setup of sphere rendering
+	SphereInit();
+
+	// Setup of cylinder rendering
+	CylinderInit();
+
+	return true;
+}
+
+void PointCloud::SphereInit()
+{
 	glGenVertexArrays(1, &sphVAO);
 	glBindVertexArray(sphVAO);
 
@@ -135,48 +145,122 @@ bool PointCloud::Init(const MemoryNames& memNames)
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
 	sphProgram = glCreateProgram();
+
+	// vertex shader
+	GLuint vert = glCreateShader(GL_VERTEX_SHADER);
+	std::ifstream vertFile("sphere.vert");
+	if (!vertFile.is_open())
 	{
-		// vertex shader
-		GLuint vert = glCreateShader(GL_VERTEX_SHADER);
-		std::ifstream vertFile("sphere.vert");
-		if (!vertFile.is_open())
-		{
-			std::cout << "Could not open sphere.vert" << std::endl;
-			exit(1);
-		}
-		std::string vertCode(std::istreambuf_iterator<char>(vertFile), (std::istreambuf_iterator<char>()));
-		const char* vertPtr = vertCode.c_str();
-		vertFile.close();
-
-		glShaderSource(vert, 1, &vertPtr, nullptr);
-		glCompileShader(vert);
-
-		// fragment shader
-		GLuint frag = glCreateShader(GL_FRAGMENT_SHADER);
-		std::ifstream fragFile("sphere.frag");
-		if (!fragFile.is_open())
-		{
-			std::cout << "Could not open sphere.frag" << std::endl;
-			exit(1);
-		}
-		std::string fragCode(std::istreambuf_iterator<char>(fragFile), (std::istreambuf_iterator<char>()));
-		const char* fragPtr = fragCode.c_str();
-		fragFile.close();
-
-		glShaderSource(frag, 1, &fragPtr, nullptr);
-		glCompileShader(frag);
-
-		glAttachShader(sphProgram, vert);
-		glAttachShader(sphProgram, frag);
-
-		glBindAttribLocation(sphProgram, 0, "pointPos");
-
-		glLinkProgram(sphProgram);
-		glDeleteShader(vert);
-		glDeleteShader(frag);
+		std::cout << "Could not open sphere.vert" << std::endl;
+		exit(1);
 	}
+	std::string vertCode(std::istreambuf_iterator<char>(vertFile), (std::istreambuf_iterator<char>()));
+	const char* vertPtr = vertCode.c_str();
+	vertFile.close();
 
-	return true;
+	glShaderSource(vert, 1, &vertPtr, nullptr);
+	glCompileShader(vert);
+
+	// fragment shader
+	GLuint frag = glCreateShader(GL_FRAGMENT_SHADER);
+	std::ifstream fragFile("sphere.frag");
+	if (!fragFile.is_open())
+	{
+		std::cout << "Could not open sphere.frag" << std::endl;
+		exit(1);
+	}
+	std::string fragCode(std::istreambuf_iterator<char>(fragFile), (std::istreambuf_iterator<char>()));
+	const char* fragPtr = fragCode.c_str();
+	fragFile.close();
+
+	glShaderSource(frag, 1, &fragPtr, nullptr);
+	glCompileShader(frag);
+
+	glAttachShader(sphProgram, vert);
+	glAttachShader(sphProgram, frag);
+
+	glBindAttribLocation(sphProgram, 0, "pointPos");
+
+	glLinkProgram(sphProgram);
+	glDeleteShader(vert);
+	glDeleteShader(frag);
+}
+
+void PointCloud::CylinderInit()
+{
+	glGenVertexArrays(1, &cylVAO);
+	glBindVertexArray(cylVAO);
+
+	glGenBuffers(1, &cylVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, cylVBO);
+	glBufferData(GL_ARRAY_BUFFER,
+		(cCount + 1) * sizeof(glm::vec4),
+		nullptr,
+		GL_DYNAMIC_DRAW
+	);
+
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(
+		(GLuint)0,
+		4,
+		GL_FLOAT,
+		GL_FALSE,
+		0,
+		0
+	);
+
+	glGenBuffers(1, &cylIds);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cylIds);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+		3 * 2 * cCount,
+		nullptr,
+		GL_DYNAMIC_DRAW
+	);
+
+	glBindVertexArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+	cylProgram = glCreateProgram();
+
+	// vertex shader
+	GLuint vert = glCreateShader(GL_VERTEX_SHADER);
+	std::ifstream vertFile("cylinder.vert");
+	if (!vertFile.is_open())
+	{
+		std::cout << "Could not open cylinder.vert" << std::endl;
+		exit(1);
+	}
+	std::string vertCode(std::istreambuf_iterator<char>(vertFile), (std::istreambuf_iterator<char>()));
+	const char* vertPtr = vertCode.c_str();
+	vertFile.close();
+
+	glShaderSource(vert, 1, &vertPtr, nullptr);
+	glCompileShader(vert);
+
+	// fragment shader
+	GLuint frag = glCreateShader(GL_FRAGMENT_SHADER);
+	std::ifstream fragFile("cylinder.frag");
+	if (!fragFile.is_open())
+	{
+		std::cout << "Could not open cylinder.frag" << std::endl;
+		exit(1);
+	}
+	std::string fragCode(std::istreambuf_iterator<char>(fragFile), (std::istreambuf_iterator<char>()));
+	const char* fragPtr = fragCode.c_str();
+	fragFile.close();
+
+	glShaderSource(frag, 1, &fragPtr, nullptr);
+	glCompileShader(frag);
+
+	glAttachShader(cylProgram, vert);
+	glAttachShader(cylProgram, frag);
+
+	glBindAttribLocation(cylProgram, 0, "pointPos");
+
+	glLinkProgram(cylProgram);
+	glDeleteShader(vert);
+	glDeleteShader(frag);
 }
 
 bool PointCloud::InitCl(cl::Context& context, const cl::vector<cl::Device>& devices)
@@ -284,10 +368,6 @@ void PointCloud::Fit(cl::CommandQueue& queue)
 
 void PointCloud::RenderSphere(const glm::mat4& viewProj) const
 {
-	/*
-	Source of algorithm:
-	https://www.songho.ca/opengl/gl_sphere.html#sphere
-	*/
 	float x0 = fitResult.x;
 	float y0 = fitResult.y;
 	float z0 = fitResult.z;
@@ -298,21 +378,21 @@ void PointCloud::RenderSphere(const glm::mat4& viewProj) const
 	for (int i = 0; i <= hCount; i++)
 	{
 		float h = i / (float)hCount;
-		float theta = 2 * glm::pi<float>() * h;
+		float theta = 2 * pi * h;
 		float costh = cosf(theta);
 		float sinth = sinf(theta);
 
 		for (int j = 0; j <= vCount; j++)
 		{
 			float v = j / (float)vCount;
-			float phi = v * glm::pi<float>();
+			float phi = v * pi;
 			
 			vertices.push_back({
-					x0 + r * sinf(phi) * costh,
-					y0 + r * cosf(phi),
-					z0 + r * sinf(phi) * sinth,
-					1
-				});
+				x0 + r * sinf(phi) * costh,
+				y0 + r * cosf(phi),
+				z0 + r * sinf(phi) * sinth,
+				1
+			});
 		}
 	}
 
@@ -354,5 +434,62 @@ void PointCloud::RenderSphere(const glm::mat4& viewProj) const
 
 void PointCloud::RenderCylinder(const glm::mat4& viewProj) const
 {
+	float x0 = fitResult.x;
+	float y0 = fitResult.y;
+	float z0 = fitResult.z;
+	float r  = fitResult.w;
 
+	std::vector<glm::vec4> vertices;
+	for (int i = 0; i <= cCount; i++)
+	{
+		float phi = 2 * glm::pi<float>() * i / (float)cCount;
+
+		// botton point
+		vertices.push_back({
+			x0 + r * cosf(phi),
+			y0,
+			z0 + r * sinf(phi),
+			1
+		});
+
+		// top point
+		vertices.push_back({
+			x0 + r * cosf(phi),
+			y0 + 5,
+			z0 + r * sinf(phi),
+			1
+		});
+	}
+
+	std::vector<unsigned int> indices;
+	for (int i = 0; i < 2 * cCount; i += 2)
+	{
+		indices.push_back(i + 1);
+		indices.push_back(i + 2);
+		indices.push_back(i);
+
+		indices.push_back(i + 3);
+		indices.push_back(i + 2);
+		indices.push_back(i + 1);
+	}
+
+	glBindBuffer(GL_ARRAY_BUFFER, cylVBO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cylIds);
+	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec4), vertices.data(), GL_DYNAMIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_DYNAMIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	glUseProgram(cylProgram);
+	glBindVertexArray(cylVAO);
+
+	glm::mat4 world(1.0f);
+	glm::mat4 mvp = viewProj * world;
+	GLuint matrix = glGetUniformLocation(cylProgram, "mvp");
+	glUniformMatrix4fv(matrix, 1, GL_FALSE, glm::value_ptr(mvp));
+
+	glDrawElements(GL_TRIANGLES, 3 * 2 * (cCount + 1), GL_UNSIGNED_INT, 0);
+
+	glBindVertexArray(0);
+	glUseProgram(0);
 }

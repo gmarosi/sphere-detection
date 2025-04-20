@@ -88,5 +88,11 @@
     <None Include="sphere.vert">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="cylinder.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="cylinder.vert">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

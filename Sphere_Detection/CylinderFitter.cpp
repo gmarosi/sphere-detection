@@ -206,7 +206,12 @@ glm::vec4 CylinderFitter::Fit(cl::CommandQueue& queue, cl::BufferGL& posBuffer)
 		queue.enqueueReleaseGLObjects(&acq);
 		candidates.clear();
 
-		return { 0, 0, 0, 0 };
+		cl_float3 result;
+		queue.enqueueReadBuffer(cylinderDataBuffer, CL_TRUE, 0, sizeof(cl_float3), &result);
+
+		float y;
+		queue.enqueueReadBuffer(planePointsBuffer, CL_TRUE, sizeof(float), sizeof(float), &y);
+		return { result.s[0], y, result.s[1], result.s[2] };
 	}
 	catch (cl::Error& error)
 	{

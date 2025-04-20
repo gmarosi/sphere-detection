@@ -155,6 +155,8 @@
   <ItemGroup>
     <None Include="cloud.frag" />
     <None Include="cloud.vert" />
+    <None Include="cylinder.frag" />
+    <None Include="cylinder.vert" />
     <None Include="cylinder_detect.cl" />
     <None Include="sphere.frag" />
     <None Include="sphere.vert" />

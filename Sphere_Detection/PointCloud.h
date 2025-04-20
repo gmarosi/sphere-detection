@@ -24,6 +24,9 @@ public:
 	void RenderCylinder(const glm::mat4& viewProj) const;
 
 private:
+	void SphereInit();
+	void CylinderInit();
+
 	const int CHANNELS = 4;
 	const float pointRenderSize = 5.f;
 
@@ -46,6 +49,13 @@ private:
 	GLuint sphVAO;
 	GLuint sphVBO;
 	GLuint sphIds;
+
+	// cylinder rendering
+	const int cCount = 36; // cylinder segment count
+	GLuint cylProgram;
+	GLuint cylVAO;
+	GLuint cylVBO;
+	GLuint cylIds;
 
 	// CL
 	cl::BufferGL posBuffer;
