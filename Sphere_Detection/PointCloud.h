@@ -15,17 +15,18 @@ public:
 	bool InitCl(cl::Context& context, const cl::vector<cl::Device>& devices);
 
 	void Update();
-	void Render(const glm::mat4& viewProj);
+	void Render(const glm::mat4& viewProj) const;
 
 	void Fit(cl::CommandQueue& queue);
 
 	void ChangeMode();
-	void RenderSphere(const glm::mat4& viewProj) const;
-	void RenderCylinder(const glm::mat4& viewProj) const;
 
 private:
-	void SphereInit();
-	void CylinderInit();
+	void InitSphere();
+	void InitCylinder();
+
+	void RenderSphere(const glm::mat4& viewProj) const;
+	void RenderCylinder(const glm::mat4& viewProj) const;
 
 	const int CHANNELS = 4;
 	const float pointRenderSize = 5.f;

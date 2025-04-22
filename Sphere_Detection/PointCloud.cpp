@@ -101,15 +101,15 @@ bool PointCloud::Init(const MemoryNames& memNames)
 	}
 
 	// Setup of sphere rendering
-	SphereInit();
+	InitSphere();
 
 	// Setup of cylinder rendering
-	CylinderInit();
+	InitCylinder();
 
 	return true;
 }
 
-void PointCloud::SphereInit()
+void PointCloud::InitSphere()
 {
 	glGenVertexArrays(1, &sphVAO);
 	glBindVertexArray(sphVAO);
@@ -186,7 +186,7 @@ void PointCloud::SphereInit()
 	glDeleteShader(frag);
 }
 
-void PointCloud::CylinderInit()
+void PointCloud::InitCylinder()
 {
 	glGenVertexArrays(1, &cylVAO);
 	glBindVertexArray(cylVAO);
@@ -313,7 +313,7 @@ void PointCloud::Update()
 	}
 }
 
-void PointCloud::Render(const glm::mat4& viewProj)
+void PointCloud::Render(const glm::mat4& viewProj) const
 {
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_PROGRAM_POINT_SIZE);

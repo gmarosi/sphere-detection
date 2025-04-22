@@ -1,6 +1,6 @@
 #define CLOUD_SIZE 14976
 #define EPSILON 0.12
-#define EPS_2 0.07
+#define EPS_2 0.06
 
 __kernel void calcPlane(
 	__global float4* data,
