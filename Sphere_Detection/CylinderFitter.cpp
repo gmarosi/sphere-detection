@@ -13,7 +13,7 @@ void CylinderFitter::Init(cl::Context& context, const cl::vector<cl::Device>& de
 	std::ifstream cylinderFile("cylinder_detect.cl");
 	if (!cylinderFile.is_open())
 	{
-		std::cout << "CylinderFitter::Init(): cylinder_detect.cl could not be opened" << std::endl;
+		std::cerr << "CylinderFitter::Init(): cylinder_detect.cl could not be opened" << std::endl;
 		exit(1);
 	}
 	std::string cylinderCode(std::istreambuf_iterator<char>(cylinderFile), (std::istreambuf_iterator<char>()));
@@ -28,7 +28,7 @@ void CylinderFitter::Init(cl::Context& context, const cl::vector<cl::Device>& de
 	}
 	catch (cl::Error& error)
 	{
-		std::cout << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(devices[0]) << std::endl;
+		std::cerr << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(devices[0]) << std::endl;
 		throw error;
 	}
 
@@ -215,7 +215,7 @@ glm::vec4 CylinderFitter::Fit(cl::CommandQueue& queue, cl::BufferGL& posBuffer)
 	}
 	catch (cl::Error& error)
 	{
-		std::cout << "CylinderFitter::Fit(): " << error.what() << std::endl;
+		std::cerr << "CylinderFitter::Fit(): " << error.what() << std::endl;
 		throw error;
 	}
 }

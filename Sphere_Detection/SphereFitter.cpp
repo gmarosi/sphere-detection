@@ -11,7 +11,7 @@ void SphereFitter::Init(cl::Context& context, const cl::vector<cl::Device>& devi
 	std::ifstream sphereFile("sphere_detect.cl");
 	if (!sphereFile.is_open())
 	{
-		std::cout << "SphereFitter::Init(): sphere_detect.cl could not be opened" << std::endl;
+		std::cerr << "SphereFitter::Init(): sphere_detect.cl could not be opened" << std::endl;
 		exit(1);
 	}
 	std::string sphereCode(std::istreambuf_iterator<char>(sphereFile), (std::istreambuf_iterator<char>()));
@@ -26,7 +26,7 @@ void SphereFitter::Init(cl::Context& context, const cl::vector<cl::Device>& devi
 	}
 	catch (cl::Error& error)
 	{
-		std::cout << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(devices[0]) << std::endl;
+		std::cerr << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(devices[0]) << std::endl;
 		throw error;
 	}
 
@@ -141,7 +141,7 @@ glm::vec4 SphereFitter::Fit(cl::CommandQueue& queue, cl::BufferGL& posBuffer)
 	}
 	catch (cl::Error& error)
 	{
-		std::cout << "SphereFitter::Fit(): " << error.what() << std::endl;
+		std::cerr << "SphereFitter::Fit(): " << error.what() << std::endl;
 		throw error;
 	}
 }

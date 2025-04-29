@@ -59,57 +59,99 @@ bool PointCloud::Init(const MemoryNames& memNames)
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 	program = glCreateProgram();
+
+	// vertex shader
+	GLuint vert = glCreateShader(GL_VERTEX_SHADER);
+	if (vert == 0)
 	{
-		// vertex shader
-		GLuint vert = glCreateShader(GL_VERTEX_SHADER);
-		std::ifstream vertFile("cloud.vert");
-		if (!vertFile.is_open())
-		{
-			std::cout << "Could not open cloud.vert" << std::endl;
-			exit(1);
-		}
-		std::string vertCode(std::istreambuf_iterator<char>(vertFile), (std::istreambuf_iterator<char>()));
-		const char* vertPtr = vertCode.c_str();
-		vertFile.close();
-
-		glShaderSource(vert, 1, &vertPtr, nullptr);
-		glCompileShader(vert);
-
-		// fragment shader
-		GLuint frag = glCreateShader(GL_FRAGMENT_SHADER);
-		std::ifstream fragFile("cloud.frag");
-		if (!fragFile.is_open())
-		{
-			std::cout << "Could not open cloud.frag" << std::endl;
-			exit(1);
-		}
-		std::string fragCode(std::istreambuf_iterator<char>(fragFile), (std::istreambuf_iterator<char>()));
-		const char* fragPtr = fragCode.c_str();
-		fragFile.close();
-
-		glShaderSource(frag, 1, &fragPtr, nullptr);
-		glCompileShader(frag);
-
-		glAttachShader(program, vert);
-		glAttachShader(program, frag);
-
-		glBindAttribLocation(program, 0, "pointPos");
-
-		glLinkProgram(program);
-		glDeleteShader(vert);
-		glDeleteShader(frag);
+		std::cerr << "PointCloud::Init(): Failed to create vertex shader!";
+		return false;
 	}
 
-	// Setup of sphere rendering
-	InitSphere();
+	std::ifstream vertFile("cloud.vert");
+	if (!vertFile.is_open())
+	{
+		std::cerr << "PointCloud::Init(): Could not open cloud.vert" << std::endl;
+		return false;
+	}
+	std::string vertCode(std::istreambuf_iterator<char>(vertFile), (std::istreambuf_iterator<char>()));
+	vertFile.close();
+	const char* vertPtr = vertCode.c_str();
 
-	// Setup of cylinder rendering
-	InitCylinder();
+	glShaderSource(vert, 1, &vertPtr, nullptr);
+	glCompileShader(vert);
 
-	return true;
+	GLint result = GL_FALSE;
+	int infoLogLength;
+
+	glGetShaderiv(vert, GL_COMPILE_STATUS, &result);
+	glGetShaderiv(vert, GL_INFO_LOG_LENGTH, &infoLogLength);
+	if (result == GL_FALSE)
+	{
+		std::vector<char> errorMessage(infoLogLength);
+		glGetShaderInfoLog(vert, infoLogLength, nullptr, &errorMessage[0]);
+		std::cerr << "PointCloud::Init(): Error while compiling vertex shader!\n" << &errorMessage[0] << std::endl;
+		return false;
+	}
+
+	// fragment shader
+	GLuint frag = glCreateShader(GL_FRAGMENT_SHADER);
+	if (frag == 0)
+	{
+		std::cerr << "PointCloud::Init(): Failed to create fragment shader!";
+		return false;
+	}
+
+	std::ifstream fragFile("cloud.frag");
+	if (!fragFile.is_open())
+	{
+		std::cerr << "PointCloud::Init(): Could not open cloud.frag" << std::endl;
+		return false;
+	}
+	std::string fragCode(std::istreambuf_iterator<char>(fragFile), (std::istreambuf_iterator<char>()));
+	fragFile.close();
+	const char* fragPtr = fragCode.c_str();
+
+	glShaderSource(frag, 1, &fragPtr, nullptr);
+	glCompileShader(frag);
+
+	result = GL_FALSE;
+
+	glGetShaderiv(vert, GL_COMPILE_STATUS, &result);
+	glGetShaderiv(vert, GL_INFO_LOG_LENGTH, &infoLogLength);
+	if (result == GL_FALSE)
+	{
+		std::vector<char> errorMessage(infoLogLength);
+		glGetShaderInfoLog(frag, infoLogLength, nullptr, &errorMessage[0]);
+		std::cerr << "PointCloud::Init(): Error while compiling fragment shader!\n" << &errorMessage[0] << std::endl;
+		return false;
+	}
+
+	glAttachShader(program, vert);
+	glAttachShader(program, frag);
+
+	glBindAttribLocation(program, 0, "pointPos");
+
+	glLinkProgram(program);
+
+	result = GL_FALSE;
+	glGetProgramiv(program, GL_LINK_STATUS, &result);
+	glGetProgramiv(program, GL_INFO_LOG_LENGTH, &infoLogLength);
+	if (result == GL_FALSE)
+	{
+		std::vector<char> errorMessage(infoLogLength);
+		glGetProgramInfoLog(program, infoLogLength, nullptr, &errorMessage[0]);
+		std::cerr << "PointCloud::Init(): Error while linking program!\n" << &errorMessage[0] << std::endl;
+		return false;
+	}
+
+	glDeleteShader(vert);
+	glDeleteShader(frag);
+
+	return InitSphere() && InitCylinder();
 }
 
-void PointCloud::InitSphere()
+bool PointCloud::InitSphere()
 {
 	glGenVertexArrays(1, &sphVAO);
 	glBindVertexArray(sphVAO);
@@ -148,33 +190,70 @@ void PointCloud::InitSphere()
 
 	// vertex shader
 	GLuint vert = glCreateShader(GL_VERTEX_SHADER);
+	if (vert == 0)
+	{
+		std::cerr << "PointCloud::InitSphere(): Failed to create vertex shader!";
+		return false;
+	}
+
 	std::ifstream vertFile("sphere.vert");
 	if (!vertFile.is_open())
 	{
-		std::cout << "Could not open sphere.vert" << std::endl;
-		exit(1);
+		std::cerr << "PointCloud::InitSphere(): Could not open sphere.vert" << std::endl;
+		return false;
 	}
 	std::string vertCode(std::istreambuf_iterator<char>(vertFile), (std::istreambuf_iterator<char>()));
-	const char* vertPtr = vertCode.c_str();
 	vertFile.close();
+	const char* vertPtr = vertCode.c_str();
 
 	glShaderSource(vert, 1, &vertPtr, nullptr);
 	glCompileShader(vert);
 
+	GLint result = GL_FALSE;
+	int infoLogLength;
+
+	glGetShaderiv(vert, GL_COMPILE_STATUS, &result);
+	glGetShaderiv(vert, GL_INFO_LOG_LENGTH, &infoLogLength);
+	if (result == GL_FALSE)
+	{
+		std::vector<char> errorMessage(infoLogLength);
+		glGetShaderInfoLog(vert, infoLogLength, nullptr, &errorMessage[0]);
+		std::cerr << "PointCloud::InitSphere(): Error while compiling vertex shader!\n" << &errorMessage[0] << std::endl;
+		return false;
+	}
+
 	// fragment shader
 	GLuint frag = glCreateShader(GL_FRAGMENT_SHADER);
+	if (frag == 0)
+	{
+		std::cerr << "PointCloud::InitSphere(): Failed to create fragment shader!";
+		return false;
+	}
+
 	std::ifstream fragFile("sphere.frag");
 	if (!fragFile.is_open())
 	{
-		std::cout << "Could not open sphere.frag" << std::endl;
-		exit(1);
+		std::cerr << "PointCloud::InitSphere(): Could not open sphere.frag" << std::endl;
+		return false;
 	}
 	std::string fragCode(std::istreambuf_iterator<char>(fragFile), (std::istreambuf_iterator<char>()));
-	const char* fragPtr = fragCode.c_str();
 	fragFile.close();
+	const char* fragPtr = fragCode.c_str();
 
 	glShaderSource(frag, 1, &fragPtr, nullptr);
 	glCompileShader(frag);
+
+	result = GL_FALSE;
+
+	glGetShaderiv(vert, GL_COMPILE_STATUS, &result);
+	glGetShaderiv(vert, GL_INFO_LOG_LENGTH, &infoLogLength);
+	if (result == GL_FALSE)
+	{
+		std::vector<char> errorMessage(infoLogLength);
+		glGetShaderInfoLog(frag, infoLogLength, nullptr, &errorMessage[0]);
+		std::cerr << "PointCloud::InitSphere(): Error while compiling fragment shader!\n" << &errorMessage[0] << std::endl;
+		return false;
+	}
 
 	glAttachShader(sphProgram, vert);
 	glAttachShader(sphProgram, frag);
@@ -182,11 +261,25 @@ void PointCloud::InitSphere()
 	glBindAttribLocation(sphProgram, 0, "pointPos");
 
 	glLinkProgram(sphProgram);
+
+	result = GL_FALSE;
+	glGetProgramiv(sphProgram, GL_LINK_STATUS, &result);
+	glGetProgramiv(sphProgram, GL_INFO_LOG_LENGTH, &infoLogLength);
+	if (result == GL_FALSE)
+	{
+		std::vector<char> errorMessage(infoLogLength);
+		glGetProgramInfoLog(sphProgram, infoLogLength, nullptr, &errorMessage[0]);
+		std::cerr << "PointCloud::InitSphere(): Error while linking program!\n" << &errorMessage[0] << std::endl;
+		return false;
+	}
+
 	glDeleteShader(vert);
 	glDeleteShader(frag);
+
+	return true;
 }
 
-void PointCloud::InitCylinder()
+bool PointCloud::InitCylinder()
 {
 	glGenVertexArrays(1, &cylVAO);
 	glBindVertexArray(cylVAO);
@@ -225,26 +318,51 @@ void PointCloud::InitCylinder()
 
 	// vertex shader
 	GLuint vert = glCreateShader(GL_VERTEX_SHADER);
+	if (vert == 0)
+	{
+		std::cerr << "PointCloud::InitCylinder(): Failed to create vertex shader!";
+		return false;
+	}
+
 	std::ifstream vertFile("cylinder.vert");
 	if (!vertFile.is_open())
 	{
-		std::cout << "Could not open cylinder.vert" << std::endl;
-		exit(1);
+		std::cerr << "PointCloud::InitCylinder(): Could not open cylinder.vert" << std::endl;
+		return false;
 	}
 	std::string vertCode(std::istreambuf_iterator<char>(vertFile), (std::istreambuf_iterator<char>()));
-	const char* vertPtr = vertCode.c_str();
 	vertFile.close();
+	const char* vertPtr = vertCode.c_str();
 
 	glShaderSource(vert, 1, &vertPtr, nullptr);
 	glCompileShader(vert);
 
+	GLint result = GL_FALSE;
+	int infoLogLength;
+
+	glGetShaderiv(vert, GL_COMPILE_STATUS, &result);
+	glGetShaderiv(vert, GL_INFO_LOG_LENGTH, &infoLogLength);
+	if (result == GL_FALSE)
+	{
+		std::vector<char> errorMessage(infoLogLength);
+		glGetShaderInfoLog(vert, infoLogLength, nullptr, &errorMessage[0]);
+		std::cerr << "PointCloud::InitCylinder(): Error while compiling vertex shader!\n" << &errorMessage[0] << std::endl;
+		return false;
+	}
+
 	// fragment shader
 	GLuint frag = glCreateShader(GL_FRAGMENT_SHADER);
+	if (frag == 0)
+	{
+		std::cerr << "PointCloud::InitCylinder(): Failed to create fragment shader!";
+		return false;
+	}
+
 	std::ifstream fragFile("cylinder.frag");
 	if (!fragFile.is_open())
 	{
-		std::cout << "Could not open cylinder.frag" << std::endl;
-		exit(1);
+		std::cerr << "PointCloud::InitCylinder(): Could not open cylinder.frag" << std::endl;
+		return false;
 	}
 	std::string fragCode(std::istreambuf_iterator<char>(fragFile), (std::istreambuf_iterator<char>()));
 	const char* fragPtr = fragCode.c_str();
@@ -253,14 +371,40 @@ void PointCloud::InitCylinder()
 	glShaderSource(frag, 1, &fragPtr, nullptr);
 	glCompileShader(frag);
 
+	result = GL_FALSE;
+
+	glGetShaderiv(vert, GL_COMPILE_STATUS, &result);
+	glGetShaderiv(vert, GL_INFO_LOG_LENGTH, &infoLogLength);
+	if (result == GL_FALSE)
+	{
+		std::vector<char> errorMessage(infoLogLength);
+		glGetShaderInfoLog(frag, infoLogLength, nullptr, &errorMessage[0]);
+		std::cerr << "PointCloud::InitSphere(): Error while compiling fragment shader!\n" << &errorMessage[0] << std::endl;
+		return false;
+	}
+
 	glAttachShader(cylProgram, vert);
 	glAttachShader(cylProgram, frag);
 
 	glBindAttribLocation(cylProgram, 0, "pointPos");
 
 	glLinkProgram(cylProgram);
+
+	result = GL_FALSE;
+	glGetProgramiv(cylProgram, GL_LINK_STATUS, &result);
+	glGetProgramiv(cylProgram, GL_INFO_LOG_LENGTH, &infoLogLength);
+	if (result == GL_FALSE)
+	{
+		std::vector<char> errorMessage(infoLogLength);
+		glGetProgramInfoLog(cylProgram, infoLogLength, nullptr, &errorMessage[0]);
+		std::cerr << "PointCloud::InitCylinder(): Error while linking program!\n" << &errorMessage[0] << std::endl;
+		return false;
+	}
+
 	glDeleteShader(vert);
 	glDeleteShader(frag);
+
+	return true;
 }
 
 bool PointCloud::InitCl(cl::Context& context, const cl::vector<cl::Device>& devices)
@@ -279,7 +423,7 @@ bool PointCloud::InitCl(cl::Context& context, const cl::vector<cl::Device>& devi
 	}
 	catch (cl::Error& error)
 	{
-		std::cout << "PointCloud::InitCl(): " << error.what() << std::endl;
+		std::cerr << "PointCloud::InitCl(): " << error.what() << std::endl;
 		return false;
 	}
 

@@ -14,7 +14,7 @@ int main(int argc, char* argv[])
 	// Initialize SDL
 	if (SDL_Init(SDL_INIT_VIDEO) == -1)
 	{
-		std::cout << "[SDL] SDL initialization failed: " << SDL_GetError() << std::endl;
+		std::cerr << "[SDL] SDL initialization failed: " << SDL_GetError() << std::endl;
 		return 1;
 	}
 
@@ -31,7 +31,7 @@ int main(int argc, char* argv[])
 	// Create window
 	SDL_Window* window = 0;
 	window = SDL_CreateWindow(
-		"LIDAR Sphere Detection",
+		"LIDAR Sphere/Cylinder Detection",
 		SDL_WINDOWPOS_CENTERED,
 		SDL_WINDOWPOS_CENTERED,
 		640,
@@ -41,7 +41,7 @@ int main(int argc, char* argv[])
 
 	if (window == 0)
 	{
-		std::cout << "[SDL] Creating SDL window failed: " << SDL_GetError() << std::endl;
+		std::cerr << "[SDL] Creating SDL window failed: " << SDL_GetError() << std::endl;
 		return 1;
 	}
 
@@ -49,7 +49,7 @@ int main(int argc, char* argv[])
 	SDL_GLContext context = SDL_GL_CreateContext(window);
 	if (context == 0)
 	{
-		std::cout << "[OpenGL] Creating OpenGL context failed: " << SDL_GetError() << std::endl;
+		std::cerr << "[OpenGL] Creating OpenGL context failed: " << SDL_GetError() << std::endl;
 		return 1;
 	}
 
@@ -60,7 +60,7 @@ int main(int argc, char* argv[])
 	GLenum error = glewInit();
 	if (error != GLEW_OK)
 	{
-		std::cout << "[GLEW] Error while initializing GLEW!" << std::endl;
+		std::cerr << "[GLEW] Error while initializing GLEW!" << std::endl;
 		return 1;
 	}
 
@@ -75,7 +75,7 @@ int main(int argc, char* argv[])
 		SDL_GL_DeleteContext(context);
 		SDL_DestroyWindow(window);
 
-		std::cout << "[OpenGL] Failed to create OpenGL context!" << std::endl;
+		std::cerr << "[OpenGL] Failed to create OpenGL context!" << std::endl;
 
 		return 1;
 	}
@@ -86,7 +86,7 @@ int main(int argc, char* argv[])
 	{
 		SDL_GL_DeleteContext(context);
 		SDL_DestroyWindow(window);
-		std::cout << "[app.Init] Error during app initialization!" << std::endl;
+		std::cerr << "[app.Init] Error during app initialization!" << std::endl;
 		return 1;
 	}
 	int w, h;

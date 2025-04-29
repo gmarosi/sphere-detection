@@ -22,8 +22,8 @@ public:
 	void ChangeMode();
 
 private:
-	void InitSphere();
-	void InitCylinder();
+	bool InitSphere();
+	bool InitCylinder();
 
 	void RenderSphere(const glm::mat4& viewProj) const;
 	void RenderCylinder(const glm::mat4& viewProj) const;

@@ -12,6 +12,7 @@ bool App::Init()
 
 	glEnable(GL_CULL_FACE);
 	glEnable(GL_DEPTH_TEST);
+	camera.SetProj(glm::radians(60.0f), 640.0f / 480.0f, 0.01f, 1000.0f);
 
 	pointCloud = new PointCloud();
 
@@ -26,11 +27,7 @@ bool App::Init()
 	snd.push_back(std::make_pair(std::wstring(buf2, buf2 + strlen(buf2)), std::wstring(buf3, buf3 + strlen(buf3))));
 	memNames.second = snd;
 
-	pointCloud->Init(memNames);
-
-	camera.SetProj(glm::radians(60.0f), 640.0f / 480.0f, 0.01f, 1000.0f);
-
-	return true;
+	return pointCloud->Init(memNames);
 }
 
 bool App::InitCl()
@@ -70,7 +67,7 @@ bool App::InitCl()
 	}
 	catch (cl::Error error)
 	{
-		std::cout << error.what() << std::endl;
+		std::cerr << error.what() << std::endl;
 		return false;
 	}
 }
